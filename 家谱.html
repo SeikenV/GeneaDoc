@@ -230,6 +230,7 @@
       <div><label>配偶姓名</label><input id="f_spouse" placeholder="选填（保留原姓名）"></div>
     </div>
     <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_deceased"> 已故（手动标记，与卒年无关）</label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_female"> 女（女为锚点，配偶为上门女婿）</label>
     <div class="row">
       <div><label>配偶生年（公历）</label><input id="f_sb" placeholder="如 1930"></div>
       <div><label>配偶卒年（公历）</label><input id="f_sd" placeholder="如 2005"></div>
@@ -384,12 +385,22 @@ function tombCols(p, kaoBi){
     h += `</div>`;
     return h;
   }
-  const labP = kaoBi ? "考" : "";
-  const labS = kaoBi ? "妣" : "";
+  const female = !!p.female;
   const sN=p.spouse||"", sB=p.spouseBirth||"", sD=p.spouseDeath||"", sDesc=p.spouseDesc||"";
   let html = "";
-  if(sN||sB||sD||sDesc) html += col(labS, sN, sB, sD, sDesc, true); // 配偶居左（在世无考妣标签）
-  html += col(labP, p.name, p.birth, p.death, p.desc, false);                  // 本人居右
+  if(female){
+    // 女方为锚点，配偶为上门女婿：本人(妣)居左，配偶(考)居右
+    const labP = kaoBi ? "妣" : "";
+    const labS = kaoBi ? "考" : "";
+    html += col(labP, p.name, p.birth, p.death, p.desc, false);
+    if(sN||sB||sD||sDesc) html += col(labS, sN, sB, sD, sDesc, true);
+  }else{
+    // 男方为锚点：配偶(妣)居左，本人(考)居右
+    const labP = kaoBi ? "考" : "";
+    const labS = kaoBi ? "妣" : "";
+    if(sN||sB||sD||sDesc) html += col(labS, sN, sB, sD, sDesc, true);
+    html += col(labP, p.name, p.birth, p.death, p.desc, false);
+  }
   return html;
 }
 
@@ -498,6 +509,7 @@ function openModal(p){
   document.getElementById("f_note").value   = p ? (p.note||"") : "";
   document.getElementById("f_tomb").value   = p ? (p.tomb||"") : "";
   document.getElementById("f_deceased").checked = !!(p && p.deceased);
+  document.getElementById("f_female").checked   = !!(p && p.female);
   document.getElementById("overlay").classList.add("show");
   document.getElementById("f_name").focus();
 }
@@ -517,6 +529,7 @@ function saveModal(){
     note: document.getElementById("f_note").value.trim(),
     tomb: document.getElementById("f_tomb").value.trim(),
     deceased: document.getElementById("f_deceased").checked,
+    female: document.getElementById("f_female").checked,
   };
   if(editing){
     Object.assign(editing, obj);
@@ -596,10 +609,10 @@ document.getElementById("exportJson").addEventListener("click", () => {
 
 /* 导出 CSV */
 document.getElementById("exportCsv").addEventListener("click", () => {
-  const cols = ["id","name","zi","birth","death","deceased","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","tomb","tombAddr","parent"];
+  const cols = ["id","name","zi","birth","death","deceased","female","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","tomb","tombAddr","parent"];
   const escCsv = v => { v=v==null?"":String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
   let rows = [cols.join(",")];
-  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.deceased?"1":"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.tomb||"",p.tombAddr||"",p.parent||""].map(escCsv).join(",")));
+  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.deceased?"1":"",p.female?"1":"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.tomb||"",p.tombAddr||"",p.parent||""].map(escCsv).join(",")));
   const blob = new Blob(["\uFEFF"+rows.join("\n")], {type:"text/csv;charset=utf-8"});
   download(blob, (state.title||"jiapu")+".csv");
 });
