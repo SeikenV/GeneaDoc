@@ -3,6 +3,7 @@
 import { store } from "../data/state.js";
 import { download, stripTags } from "../utils/dom.js";
 import { exportDocx } from "./docx.js";
+import { exportTraditionalDocx } from "./traditional-docx.js";
 
 const CSV_COLS = [
   "id", "name", "zi", "birth", "death", "deceased", "female", "order",
@@ -44,4 +45,5 @@ export function initExports() {
   document.getElementById("exportJson").addEventListener("click", exportJson);
   document.getElementById("exportCsv").addEventListener("click", exportCsv);
   document.getElementById("exportDocx").addEventListener("click", exportDocx);
+  document.getElementById("exportTraditionalDocx").addEventListener("click", exportTraditionalDocx);
 }
