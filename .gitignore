@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # IDE / tooling caches
 .workbuddy/
+
+# 本地数据（不纳入版本控制，仅本地使用）
+蓝氏家谱.json
