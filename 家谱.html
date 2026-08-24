@@ -456,7 +456,12 @@ function makeNode(p, gen){
   node.innerHTML = html;
   li.appendChild(node);
 
-  const kids = childrenOf(p.id);
+  const kids = childrenOf(p.id).slice().sort((a,b) => {
+    const oa = a.order ? +a.order : 999;
+    const ob = b.order ? +b.order : 999;
+    if(oa !== ob) return oa - ob;          // 按排行升序
+    return (a.female?0:1) - (b.female?0:1); // 同排行时男在后（右）
+  }).reverse();                            // 镜像：老大在右
   if(kids.length){
     const ul = document.createElement("ul");
     kids.forEach(c => ul.appendChild(makeNode(c, gen+1)));
