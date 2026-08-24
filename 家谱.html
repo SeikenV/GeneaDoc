@@ -204,6 +204,7 @@
       <label class="btn">导入 JSON<input type="file" id="importJson" accept=".json"  hidden></label>
       <button id="exportJson">导出 JSON</button>
       <button id="exportCsv">导出 CSV</button>
+      <button id="exportDocx">导出 DOCX</button>
       <span class="spacer"></span>
       <span id="saveState">已保存</span>
     </div>
@@ -659,6 +660,97 @@ document.getElementById("exportCsv").addEventListener("click", () => {
   state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.deceased?"1":"",p.female?"1":"",p.order||"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.tomb||"",p.tombAddr||"",p.parent||""].map(escCsv).join(",")));
   const blob = new Blob(["\uFEFF"+rows.join("\n")], {type:"text/csv;charset=utf-8"});
   download(blob, (state.title||"jiapu")+".csv");
+});
+
+/* 导出 DOCX */
+function loadHtmlDocx(cb){
+  if(window.htmlDocx){ cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js';
+  s.onload = cb;
+  s.onerror = () => alert('无法加载 DOCX 库，请检查网络后重试');
+  document.head.appendChild(s);
+}
+
+function buildDocxHtml(){
+  const MAX = 5;
+  function stripTags(s){ return (s||'').replace(/<[^>]+>/g,''); }
+  function personHtml(p, isSpouse){
+    const r = isSpouse
+      ? { name:p.spouse, birth:p.spouseBirth, death:p.spouseDeath, desc:p.spouseDesc }
+      : { name:p.name, birth:p.birth, death:p.death, desc:p.desc };
+    let h = '';
+    if(!isSpouse && p.order) h += `<div class="sub">${esc(rankLabel(p.order,!!p.female))}</div>`;
+    h += `<div class="nm">${esc(r.name||'（佚名）')}</div>`;
+    if(!isSpouse && p.zi) h += `<div class="sub">字 ${esc(p.zi)}</div>`;
+    if(r.birth||r.death) h += `<div class="sub">公历 ${esc(r.birth||'')}${r.birth&&r.death?' – ':''}${esc(r.death||'')}</div>`;
+    const b = yearDetail(r.birth), d = yearDetail(r.death);
+    if(b) h += `<div class="sub">农历 ${b.gz}${b.era?' / '+b.era:''}</div>`;
+    if(d) h += `<div class="sub">农历 ${d.gz}${d.era?' / '+d.era:''}</div>`;
+    if(!isSpouse && p.note) h += `<div class="sub">${esc(p.note)}</div>`;
+    if(!isSpouse && p.tomb) h += `<div class="sub">墓：${esc(p.tomb)}</div>`;
+    if(!isSpouse && p.tombAddr) h += `<div class="sub">葬于 ${esc(stripTags(p.tombAddr))}</div>`;
+    const desc = stripTags(r.desc);
+    if(desc) h += `<div class="sub">${esc(desc)}</div>`;
+    return h;
+  }
+  function walk(person){
+    const kids = childrenOf(person.id).slice().sort((a,b)=>{
+      const ga=a.female?0:1, gb=b.female?0:1;
+      if(ga!==gb) return ga-gb;
+      const oa=a.order?+a.order:999, ob=b.order?+b.order:999;
+      return ob-oa;
+    });
+    if(!kids.length) return;
+    const gen = genOf(person);
+    const batches = [];
+    for(let i=0;i<kids.length;i+=MAX) batches.push(kids.slice(i,i+MAX));
+    batches.forEach((batch,bi)=>{
+      html += `<div class="family">`;
+      html += `<div class="gh">第${gen}世 → 第${gen+1}世${batches.length>1?`（${bi+1}/${batches.length}）`:''}</div>`;
+      html += `<table><tr>`;
+      html += `<td class="pc" style="width:50%">${personHtml(person,false)}</td>`;
+      html += `<td style="width:50%">${person.spouse?personHtml(person,true):'&nbsp;'}</td>`;
+      html += `</tr></table>`;
+      html += `<table><tr>`;
+      batch.forEach(kid => { html += `<td class="cc">${personHtml(kid,false)}</td>`; });
+      html += `</tr></table>`;
+      html += `</div>`;
+    });
+    kids.forEach(walk);
+  }
+
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+@page{size:A4;margin:2cm;}
+body{font-family:"SimSun","Songti SC",serif;font-size:12pt;color:#3a2e1f;}
+.tp{text-align:center;page-break-after:always;}
+.tp h1{font-size:36pt;margin-top:25%;letter-spacing:8pt;color:#8c5a2b;}
+.tp p{font-size:14pt;color:#7a6a52;}
+.family{page-break-before:always;}
+.gh{font-size:14pt;font-weight:bold;text-align:center;border-bottom:1.5pt solid #8c5a2b;padding-bottom:4pt;margin-bottom:8pt;}
+table{width:100%;border-collapse:collapse;margin-bottom:8pt;}
+td{border:1px solid #b0a080;padding:5pt;font-size:10pt;vertical-align:top;}
+.pc{background:#f5f0e0;}
+.cc{text-align:center;}
+.nm{font-size:13pt;font-weight:bold;margin-bottom:2pt;}
+.sub{font-size:9pt;color:#7a6a52;margin-bottom:1pt;}
+</style></head><body>`;
+
+  html += `<div class="tp"><h1>${esc(state.title)}</h1><p>${esc(state.sub)}</p></div>`;
+  state.data.filter(p => !p.parent).forEach(walk);
+  html += `</body></html>`;
+  return html;
+}
+
+document.getElementById("exportDocx").addEventListener("click", () => {
+  loadHtmlDocx(() => {
+    const html = buildDocxHtml();
+    const blob = window.htmlDocx.asBlob(html, {
+      orientation:'portrait',
+      margins:{top:1440,right:1440,bottom:1440,left:1440}
+    });
+    download(blob, (state.title||'jiapu')+'.docx');
+  });
 });
 
 /* 导入 JSON */
