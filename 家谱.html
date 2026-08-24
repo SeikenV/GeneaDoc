@@ -27,23 +27,8 @@
   body.edit [contenteditable]:focus{ outline:2px solid var(--accent); }
 
   .layout{ display:flex; align-items:flex-start; }
-  .side{
-    position:sticky; top:0; align-self:flex-start;
-    display:flex; flex-direction:column; gap:6px;
-    padding:8px; margin:10px 0 10px 10px;
-    background:#efe4cf; border:1px solid #e0d4bd; border-radius:10px;
-    min-width:72px;
-  }
-  .side .side-title{ font-size:12px; color:var(--sub); text-align:center; margin-bottom:2px; }
-  .side button{
-    font-family:inherit; font-size:13px; cursor:pointer;
-    padding:6px 4px; border:1px solid var(--card-border);
-    background:var(--card-bg); color:var(--accent); border-radius:6px;
-  }
-  .side button:hover{ background:#f8eede; }
-  .side .hint{ font-size:11px; color:var(--sub); line-height:1.4; }
-
   .main{ flex:1; min-width:0; }
+  .toolbar .sep{ width:1px; height:22px; background:#d9cbb2; margin:0 2px; }
   .toolbar{
     position:sticky; top:0; z-index:20;
     display:flex; gap:8px; justify-content:center; flex-wrap:wrap; align-items:center;
@@ -178,9 +163,6 @@
   .modal .btns button{ font-family:inherit; font-size:14px; cursor:pointer; padding:7px 16px; border-radius:6px; }
   .modal .save{ background:var(--accent); color:#fff; border:1px solid var(--accent); }
   .modal .cancel{ background:#fff; color:var(--sub); border:1px solid #ccc; }
-  .ver-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #e0d4bd; font-size:13px; }
-  .ver-row button{ font-family:inherit; font-size:12px; cursor:pointer; padding:3px 10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--accent); border-radius:5px; }
-  .ver-row button:hover{ background:#efe4cf; }
 
   @media print{
     body{ background:#fff; }
@@ -198,21 +180,18 @@
 </header>
 
 <div class="layout">
-  <aside class="side">
-    <div class="side-title">世代</div>
-    <button id="genUp">上溯</button>
-    <button id="genDown">下延</button>
-  </aside>
-
   <div class="main">
     <div class="toolbar">
       <button id="expandBtn">展开详情</button>
       <button id="modeBtn">进入编辑</button>
+      <span class="sep"></span>
+      <button id="genUp">上溯一代</button>
+      <button id="genDown">下延一代</button>
+      <span class="sep"></span>
       <button onclick="window.print()">打印 / 存为 PDF</button>
-      <label class="btn">导入 JSON<input type="file" id="importJson" accept=".json" hidden></label>
+      <label class="btn">导入 JSON<input type="file" id="importJson" accept=".json"  hidden></label>
       <button id="exportJson">导出 JSON</button>
       <button id="exportCsv">导出 CSV</button>
-      <button id="versionBtn">版本</button>
       <span class="spacer"></span>
       <span id="saveState">已保存</span>
     </div>
@@ -251,18 +230,6 @@
       <button class="cancel" onclick="closeModal()">取消</button>
       <button class="save" id="saveBtn">保存</button>
     </div>
-  </div>
-</div>
-
-<div class="overlay" id="verModal">
-  <div class="modal" style="width:440px">
-    <h3>版本管理</h3>
-    <div style="margin-bottom:12px">
-      <button class="save" onclick="snapshot()" style="background:var(--accent);color:#fff;border:1px solid var(--accent);padding:7px 14px;border-radius:6px;cursor:pointer;font-family:inherit">保存当前为版本</button>
-      <span style="font-size:12px;color:var(--sub);margin-left:8px">自动保存一直在后台进行，这里是手动快照。</span>
-    </div>
-    <div id="verList"></div>
-    <div class="btns"><button class="cancel" onclick="closeVer()">关闭</button></div>
   </div>
 </div>
 
@@ -580,46 +547,6 @@ document.getElementById("resetDemo").addEventListener("click", () => {
   save(); render();
 });
 
-/* ===== 版本管理 ===== */
-const VER_KEY = "jiapu_versions_v1";
-function loadVers(){ try{ return JSON.parse(localStorage.getItem(VER_KEY)) || []; }catch(e){ return []; } }
-function saveVers(v){ localStorage.setItem(VER_KEY, JSON.stringify(v)); }
-function snapshot(){
-  const v = loadVers();
-  v.push({ ts:Date.now(), title:state.title, sub:state.sub, data:state.data });
-  saveVers(v); renderVerList();
-}
-function restoreVer(ts){
-  const v = loadVers().find(x => x.ts === ts);
-  if(!v) return;
-  if(!confirm("恢复到该版本？当前未另存的内容将被覆盖。")) return;
-  state = { title:v.title, sub:v.sub, data:v.data };
-  document.getElementById("title").textContent = state.title;
-  document.getElementById("subtitle").textContent = state.sub;
-  save(); render(); closeVer();
-}
-function delVer(ts){
-  if(!confirm("删除该版本？")) return;
-  saveVers(loadVers().filter(x => x.ts !== ts));
-  renderVerList();
-}
-function openVer(){ renderVerList(); document.getElementById("verModal").classList.add("show"); }
-function closeVer(){ document.getElementById("verModal").classList.remove("show"); }
-function renderVerList(){
-  const v = loadVers().sort((a,b) => b.ts - a.ts);
-  let h = "";
-  if(!v.length) h = '<div style="color:#7a6a52;padding:10px 0">暂无版本，点上方「保存当前为版本」创建。</div>';
-  v.forEach(x => {
-    const d = new Date(x.ts);
-    const t = d.toLocaleString();
-    h += `<div class="ver-row"><span>${esc(t)}</span>` +
-         `<span><button onclick="restoreVer(${x.ts})">恢复</button> ` +
-         `<button onclick="delVer(${x.ts})">删除</button></span></div>`;
-  });
-  document.getElementById("verList").innerHTML = h;
-}
-document.getElementById("versionBtn").addEventListener("click", openVer);
-document.getElementById("verModal").addEventListener("click", e => { if(e.target.id==="verModal") closeVer(); });
 
 /* 导出 JSON */
 document.getElementById("exportJson").addEventListener("click", () => {
