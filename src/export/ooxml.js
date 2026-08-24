@@ -54,12 +54,13 @@ export function spacer(before = 200, after = 0) {
 export function cell(children, opts = {}) {
   const {
     widthPct = null,
+    gridSpan = null,
     vertical = false,
     valign = "center",
     borders = true,
     top = false,
     bottom = false,
-    margin = 60,
+    margin = 80,
   } = opts;
   // 边框：默认全部细边框；或仅上下
   let b;
@@ -80,8 +81,9 @@ export function cell(children, opts = {}) {
       <w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tcBorders>`;
   }
   const w = widthPct != null ? `<w:tcW w:w="${Math.round(widthPct * 50)}" w:type="pct"/>` : "";
+  const gs = gridSpan != null ? `<w:gridSpan w:val="${gridSpan}"/>` : "";
   const vd = vertical ? '<w:textDirection w:val="tbRl"/>' : "";
-  return `<w:tc><w:tcPr>${w}${vd}<w:vAlign w:val="${valign}"/>${b}<w:tcMar><w:top w:w="${margin}" w:type="dxa"/><w:left w:w="${margin}" w:type="dxa"/><w:bottom w:w="${margin}" w:type="dxa"/><w:right w:w="${margin}" w:type="dxa"/></w:tcMar></w:tcPr>${children}</w:tc>`;
+  return `<w:tc><w:tcPr>${w}${gs}${vd}<w:vAlign w:val="${valign}"/>${b}<w:tcMar><w:top w:w="${margin}" w:type="dxa"/><w:left w:w="${margin}" w:type="dxa"/><w:bottom w:w="${margin}" w:type="dxa"/><w:right w:w="${margin}" w:type="dxa"/></w:tcMar></w:tcPr>${children}</w:tc>`;
 }
 
 /** 一行 */
@@ -210,7 +212,7 @@ const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 const ROOT_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/2006/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`;
 
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -230,13 +232,17 @@ function docRels() {
  * 组装最终文档。
  * @param {string[]} bodyParts OOXML 正文片段（段落 / 表格）
  * @param {{top?:number,right?:number,bottom?:number,left?:number}} pageMargin 页边距（dxa, 1/1440 英寸）
+ * @param {{landscape?:boolean}} page 页面方向
  */
-export async function buildDocx(bodyParts, pageMargin = { top: 1440, right: 1440, bottom: 1440, left: 1440 }) {
+export async function buildDocx(bodyParts, pageMargin = { top: 1440, right: 1440, bottom: 1440, left: 1440 }, page = {}) {
   const m = pageMargin;
   const mAttrs = `w:top="${m.top ?? 1440}" w:right="${m.right ?? 1440}" w:bottom="${m.bottom ?? 1440}" w:left="${m.left ?? 1440}" w:header="720" w:footer="720" w:gutter="0"`;
+  const pgSz = page.landscape
+    ? '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>'
+    : '<w:pgSz w:w="11906" w:h="16838"/>';
   const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>${bodyParts.join("")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar ${mAttrs}/></w:sectPr></w:body>
+  <w:body>${bodyParts.join("")}<w:sectPr>${pgSz}<w:pgMar ${mAttrs}/></w:sectPr></w:body>
 </w:document>`;
 
   const files = {
