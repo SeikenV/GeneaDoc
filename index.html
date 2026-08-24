@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家谱树（可编辑）</title>
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<header>
+  <h1 id="title" contenteditable="true">某氏家谱</h1><br>
+  <div class="sub" id="subtitle" contenteditable="true">— 世代源流图 —</div>
+</header>
+
+<div class="layout">
+  <div class="main">
+    <div class="toolbar">
+      <button id="expandBtn">展开详情</button>
+      <button id="modeBtn">进入编辑</button>
+      <span class="sep"></span>
+      <button id="genUp">上溯一代</button>
+      <button id="genDown">下延一代</button>
+      <label class="rg">起始世 <input id="rootGen" type="number" min="1" step="1" style="width:48px;font-family:inherit;padding:3px 6px;border:1px solid var(--card-border);border-radius:6px;"></label>
+      <span class="sep"></span>
+      <button onclick="window.print()">打印 / 存为 PDF</button>
+      <label class="btn">导入 JSON<input type="file" id="importJson" accept=".json"  hidden></label>
+      <button id="exportJson">导出 JSON</button>
+      <button id="exportCsv">导出 CSV</button>
+      <button id="exportDocx">导出 DOCX</button>
+      <span class="spacer"></span>
+      <span id="saveState">已保存</span>
+    </div>
+
+    <div class="scroll">
+      <div class="tree" id="tree"></div>
+      <div class="edit-panel" id="editPanel">
+        <div class="stat" id="stat"></div>
+        <button id="addRoot">＋ 添加始祖 / 新支</button>
+        <button class="ghost" id="resetDemo">恢复示例</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">编辑</h3>
+    <label>姓名 *</label>
+    <input id="f_name" placeholder="必填">
+    <div class="row">
+      <div><label>字 / 号</label><input id="f_zi" placeholder="选填"></div>
+      <div><label>配偶姓名</label><input id="f_spouse" placeholder="选填（保留原姓名）"></div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>生（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_birth_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_birth_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_birth_d" type="number" min="1" max="31" placeholder="日">
+      </div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>卒（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_death_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_death_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_death_d" type="number" min="1" max="31" placeholder="日">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_deceased"> 已故（手动标记，与卒年无关）</label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_female"> 女（女为锚点，配偶为上门女婿）</label>
+    <div class="row">
+      <div><label>家中排行</label><select id="f_order">
+        <option value="">（空）</option>
+        <option value="1">长子</option>
+        <option value="2">次子</option>
+        <option value="3">三子</option>
+        <option value="4">四子</option>
+        <option value="5">五子</option>
+        <option value="6">六子</option>
+        <option value="7">七子</option>
+        <option value="8">八子</option>
+        <option value="9">九子</option>
+        <option value="10">十子</option>
+      </select></div>
+      <div><label>配偶字 / 号</label><input id="f_szi" placeholder="选填"></div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>配偶生（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_sb_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_sb_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_sb_d" type="number" min="1" max="31" placeholder="日">
+      </div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>配偶卒（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_sd_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_sd_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_sd_d" type="number" min="1" max="31" placeholder="日">
+      </div>
+    </div>
+    <label>备注（迁居 / 职业等）</label>
+    <input id="f_note" placeholder="选填">
+    <label>配偶备注（迁居 / 职业等）</label>
+    <input id="f_snote" placeholder="选填">
+    <label>墓碑所在城市</label>
+    <input id="f_tomb" placeholder="选填（墓碑所在地，如：苏州）">
+    <div class="btns">
+      <button class="cancel" id="cancelBtn">取消</button>
+      <button class="save" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
