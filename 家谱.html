@@ -363,7 +363,7 @@ function personCard(p, isSpouse){
   return `<div class="person">${html}</div>`;
 }
 
-function tombCols(p){
+function tombCols(p, kaoBi){
   const editMode = document.body.classList.contains("edit");
   function col(lab, name, birth, death, descTxt, sp){
     if(!name && !birth && !death) return "";
@@ -383,10 +383,12 @@ function tombCols(p){
     h += `</div>`;
     return h;
   }
+  const labP = kaoBi ? "考" : "";
+  const labS = kaoBi ? "妣" : "";
   const sN=p.spouse||"", sB=p.spouseBirth||"", sD=p.spouseDeath||"", sDesc=p.spouseDesc||"";
   let html = "";
-  if(sN||sB||sD||sDesc) html += col("妣", sN, sB, sD, sDesc, true); // 妣居左
-  html += col("考", p.name, p.birth, p.death, p.desc, false);       // 考居右（传统右为尊）
+  if(sN||sB||sD||sDesc) html += col(labS, sN, sB, sD, sDesc, true); // 配偶居左（在世无考妣标签）
+  html += col(labP, p.name, p.birth, p.death, p.desc, false);                  // 本人居右
   return html;
 }
 
@@ -396,15 +398,16 @@ function makeNode(p, gen){
   node.className = "node";
   const editMode = document.body.classList.contains("edit");
   let html;
-  if(!editMode && p.death){
+  if(!editMode){
+    const kaoBi = !!p.death; // 已故显示考妣，在世不显示
     html = `<div class="tomb"><span class="gen-tag">${genOf(p)}世</span>` +
-           `<div class="cols">${tombCols(p)}</div>`;
+           `<div class="cols">${tombCols(p, kaoBi)}</div>`;
     if(p.tomb && !expanded) html += `<div class="tomb-loc">葬于 ${esc(p.tomb)}</div>`;
     if(expanded){
       const loc = p.tombAddr || p.tomb || "";
       html += `<div class="tomb-addr"><div class="addr-lab">葬于</div>` +
         (editMode
-          ? `<div class="desc" contenteditable="  true" data-id="${p.id}" data-field="tombAddr">${loc}</div>`
+          ? `<div class="desc" contenteditable="true" data-id="${p.id}" data-field="tombAddr">${loc}</div>`
           : `<div class="desc">${loc}</div>`) +
         `</div>`;
     }
