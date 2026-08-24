@@ -457,13 +457,13 @@ function makeNode(p, gen){
   li.appendChild(node);
 
   const kids = childrenOf(p.id).slice().sort((a,b) => {
-    const ga = a.female ? 0 : 1;           // 男(1)在后，男整体居右
+    const ga = a.female ? 0 : 1;           // 女(0)在左，男(1)在右
     const gb = b.female ? 0 : 1;
     if(ga !== gb) return ga - gb;
     const oa = a.order ? +a.order : 999;
     const ob = b.order ? +b.order : 999;
-    return oa - ob;                        // 同性别内按排行升序
-  }).reverse();                            // 镜像：同性别内老大在右
+    return oa - ob;                        // 同性别内排行升序（左小右大 = 老大在右）
+  });
   if(kids.length){
     const ul = document.createElement("ul");
     kids.forEach(c => ul.appendChild(makeNode(c, gen+1)));
