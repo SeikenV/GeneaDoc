@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家谱树（可编辑）</title>
+<style>
+  :root{
+    --line:#b08968;
+    --card-bg:#fffdf7;
+    --card-border:#c9a36b;
+    --name:#3a2e1f;
+    --sub:#7a6a52;
+    --accent:#8c5a2b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Songti SC","SimSun","STSong","Noto Serif CJK SC",serif;
+    color:var(--name); background:#f3ede1;
+  }
+
+  header{ text-align:center; padding:20px 12px 6px; }
+  header h1{ margin:0; font-size:28px; letter-spacing:6px; color:var(--accent); display:inline-block; }
+  header .sub{ color:var(--sub); margin-top:6px; font-size:14px; letter-spacing:2px; display:inline-block; }
+  body.edit [contenteditable]{ outline:1px dashed #c9a36b; border-radius:6px; padding:2px 8px; cursor:text; }
+  body.edit [contenteditable]:focus{ outline:2px solid var(--accent); }
+
+  .layout{ display:flex; align-items:flex-start; }
+  .side{
+    position:sticky; top:0; align-self:flex-start;
+    display:flex; flex-direction:column; gap:6px;
+    padding:8px; margin:10px 0 10px 10px;
+    background:#efe4cf; border:1px solid #e0d4bd; border-radius:10px;
+    min-width:72px;
+  }
+  .side .side-title{ font-size:12px; color:var(--sub); text-align:center; margin-bottom:2px; }
+  .side button{
+    font-family:inherit; font-size:13px; cursor:pointer;
+    padding:6px 4px; border:1px solid var(--card-border);
+    background:var(--card-bg); color:var(--accent); border-radius:6px;
+  }
+  .side button:hover{ background:#f8eede; }
+  .side .hint{ font-size:11px; color:var(--sub); line-height:1.4; }
+
+  .main{ flex:1; min-width:0; }
+  .toolbar{
+    position:sticky; top:0; z-index:20;
+    display:flex; gap:8px; justify-content:center; flex-wrap:wrap; align-items:center;
+    padding:10px; background:#f3ede1; border-bottom:1px solid #e0d4bd;
+  }
+  .toolbar button, .toolbar label.btn{
+    font-family:inherit; font-size:14px; cursor:pointer;
+    padding:6px 14px; border:1px solid var(--card-border);
+    background:var(--card-bg); color:var(--accent); border-radius:6px; user-select:none;
+  }
+  .toolbar button:hover, .toolbar label.btn:hover{ background:#efe4cf; }
+  .toolbar .spacer{ flex:1; }
+  #saveState{ font-size:13px; color:#5a8a3a; }
+  #saveState.warn{ color:#b0413e; }
+
+  .scroll{ overflow:auto; padding:20px 30px 80px; }
+
+  /* ===== 树状图核心样式 ===== */
+  .tree{ display:flex; justify-content:center; min-width:max-content; }
+  .tree ul{ position:relative; padding-top:22px; display:flex; justify-content:center; margin:0; list-style:none; }
+  .tree li{ position:relative; padding:22px 4px 0 4px; list-style:none; text-align:center; }
+  .tree li::before, .tree li::after{
+    content:''; position:absolute; top:0; right:50%;
+    border-top:2px solid var(--line); width:50%; height:22px;
+  }
+  .tree li::after{ right:auto; left:50%; border-left:2px solid var(--line); }
+  .tree li:only-child::before, .tree li:only-child::after{ display:none; }
+  .tree li:only-child{ padding-top:0; }
+  .tree li:first-child::before, .tree li:last-child::after{ border:0 none; }
+  .tree li:last-child::before{ border-right:2px solid var(--line); border-radius:0 6px 0 0; }
+  .tree li:first-child::after{ border-radius:6px 0 0 0; }
+  .tree ul::before{ content:''; position:absolute; top:0; left:50%; border-left:2px solid var(--line); width:0; height:22px; }
+
+  .node{ display:inline-block; position:relative; vertical-align:top; text-align:center; }
+  .family{
+    display:inline-block; text-align:center;
+    border:1.5px solid var(--card-border); border-radius:12px;
+    background:#fffaf0; padding:4px; box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  .pair{ display:flex; }
+  .person{
+    min-width:120px; max-width:190px;
+    padding:10px 12px;
+    text-align:center; line-height:1.5;
+  }
+  .person + .person{ margin-left:-1.5px; border-left:1.5px solid var(--card-border); }
+  .nm{ font-size:18px; font-weight:bold; color:var(--name); }
+  .zi{ font-size:12px; color:var(--sub); margin-top:2px; }
+  .life{ font-size:12px; color:var(--sub); margin-top:3px; }
+  .life2{ font-size:11px; color:var(--sub); margin-top:4px; text-align:left; }
+  .desc{
+    margin-top:6px; padding:6px 8px; text-align:left;
+    font-size:12px; color:#5a4a36; line-height:1.6;
+    border-top:1px dashed #e0d4bd; max-height:120px; overflow:auto;
+  }
+  body.edit .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; }
+
+  /* 仿墓碑：男方已故，展示模式 */
+  .tomb{
+    display:inline-block; position:relative;
+    background:linear-gradient(#f7f2e6,#efe7d6);
+    border:2px solid #9c8a66; border-radius:16px 16px 8px 8px;
+    padding:12px 12px 14px; box-shadow:0 2px 6px rgba(0,0,0,.12);
+  }
+  .tomb .cap{
+    text-align:center; font-size:13px; color:#8a7a5c; letter-spacing:3px;
+    border-bottom:1px solid #d8c9a8; padding-bottom:6px; margin-bottom:8px;
+  }
+  .tomb .cols{ display:flex; }
+  .tomb .col{ padding:4px 14px; text-align:center; min-width:54px; }
+  .tomb .col + .col{ border-left:1px solid #d8c9a8; }
+  .tomb .lab{ font-size:14px; color:#8a7a5c; font-weight:bold; margin-bottom:4px; }
+  .tomb .nm{
+    writing-mode: vertical-rl; text-orientation: upright;
+    font-size:20px; font-weight:bold; color:var(--name);
+    margin:0 auto; letter-spacing:3px; min-height:28px;
+  }
+  .tomb .life{ font-size:12px; color:#7a6a52; margin-top:3px; }
+  .tomb .life2{ font-size:11px; color:#7a6a52; margin-top:4px; text-align:left; }
+  .tomb .desc{
+    margin-top:6px; padding:6px 8px; text-align:left;
+    font-size:12px; color:#5a4a36; line-height:1.6;
+    border-top:1px dashed #d8c9a8; max-height:120px; overflow:auto;
+  }
+  body.edit .tomb .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; }
+  .gen-tag{
+    position:absolute; left:2px; top:-10px;
+    background:var(--accent); color:#fff; font-size:11px;
+    padding:1px 6px; border-radius:10px; z-index:2;
+  }
+  .node .acts{ display:none; margin-top:8px; gap:6px; justify-content:center; }
+  .node button{
+    font-family:inherit; font-size:12px; cursor:pointer;
+    padding:2px 8px; border:1px solid var(--card-border);
+    background:#fff; color:var(--accent); border-radius:5px;
+  }
+  .node button:hover{ background:#efe4cf; }
+  .node button.del:hover{ background:#f6d9d6; border-color:#b0413e; color:#b0413e; }
+
+  .edit-panel{
+    display:none; text-align:center; margin-top:30px; padding:14px;
+    border-top:1px dashed var(--card-border); color:var(--sub); font-size:14px;
+  }
+  body.edit .edit-panel{ display:block; }
+  body.edit .node .acts{ display:flex; }
+  .edit-panel .stat{ margin-bottom:10px; }
+  .edit-panel button{
+    font-family:inherit; font-size:14px; cursor:pointer;
+    padding:6px 16px; border:1px solid var(--accent);
+    background:var(--accent); color:#fff; border-radius:6px; margin:0 6px;
+  }
+  .edit-panel button.ghost{ background:var(--card-bg); color:var(--accent); }
+
+  .overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+    z-index:100; align-items:center; justify-content:center;
+  }
+  .overlay.show{ display:flex; }
+  .modal{
+    background:#fffdf7; border:1.5px solid var(--card-border); border-radius:10px;
+    padding:20px 24px; width:340px; box-shadow:0 8px 30px rgba(0,0,0,.25);
+  }
+  .modal h3{ margin:0 0 14px; color:var(--accent); font-size:18px; }
+  .modal label{ display:block; font-size:13px; color:var(--sub); margin:10px 0 3px; }
+  .modal input{
+    width:100%; padding:7px 9px; font-family:inherit; font-size:14px;
+    border:1px solid #d9c9a8; border-radius:6px; background:#fffdf7;
+  }
+  .modal .row{ display:flex; gap:10px; }
+  .modal .row > div{ flex:1; }
+  .modal .btns{ margin-top:18px; display:flex; gap:10px; justify-content:flex-end; }
+  .modal .btns button{ font-family:inherit; font-size:14px; cursor:pointer; padding:7px 16px; border-radius:6px; }
+  .modal .save{ background:var(--accent); color:#fff; border:1px solid var(--accent); }
+  .modal .cancel{ background:#fff; color:var(--sub); border:1px solid #ccc; }
+  .ver-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #e0d4bd; font-size:13px; }
+  .ver-row button{ font-family:inherit; font-size:12px; cursor:pointer; padding:3px 10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--accent); border-radius:5px; }
+  .ver-row button:hover{ background:#efe4cf; }
+
+  @media print{
+    body{ background:#fff; }
+    .side, .toolbar, .edit-panel, .node .acts, .overlay{ display:none !important; }
+    header{ padding-top:0; }
+    .scroll{ overflow:visible; padding: 0; }
+    @page{ size: landscape; margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title" contenteditable="true">某氏家谱</h1><br>
+  <div class="sub" id="subtitle" contenteditable="true">— 世代源流图 —</div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="side-title">世代</div>
+    <button id="genUp">上溯</button>
+    <button id="genDown">下延</button>
+  </aside>
+
+  <div class="main">
+    <div class="toolbar">
+      <button id="expandBtn">展开详情</button>
+      <button id="modeBtn">进入编辑</button>
+      <button onclick="window.print()">打印 / 存为 PDF</button>
+      <label class="btn">导入 JSON<input type="file" id="importJson" accept=".json" hidden></label>
+      <button id="exportJson">导出 JSON</button>
+      <button id="exportCsv">导出 CSV</button>
+      <button id="versionBtn">版本</button>
+      <span class="spacer"></span>
+      <span id="saveState">已保存</span>
+    </div>
+
+    <div class="scroll">
+      <div class="tree" id="tree"></div>
+      <div class="edit-panel" id="editPanel">
+        <div class="stat" id="stat"></div>
+        <button id="addRoot">＋ 添加始祖 / 新支</button>
+        <button class="ghost" id="resetDemo">恢复示例</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">编辑</h3>
+    <label>姓名 *</label>
+    <input id="f_name" placeholder="必填">
+    <div class="row">
+      <div><label>字 / 号</label><input id="f_zi" placeholder="选填"></div>
+      <div><label>生年（公历）</label><input id="f_birth" placeholder="如 1925"></div>
+    </div>
+    <div class="row">
+      <div><label>卒年（公历）</label><input id="f_death" placeholder="如 2001"></div>
+      <div><label>配偶姓名</label><input id="f_spouse" placeholder="选填（保留原姓名）"></div>
+    </div>
+    <div class="row">
+      <div><label>配偶生年（公历）</label><input id="f_sb" placeholder="如 1930"></div>
+      <div><label>配偶卒年（公历）</label><input id="f_sd" placeholder="如 2005"></div>
+    </div>
+    <label>备注（迁居 / 职业等）</label>
+    <input id="f_note" placeholder="选填">
+    <div class="btns">
+      <button class="cancel" onclick="closeModal()">取消</button>
+      <button class="save" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="verModal">
+  <div class="modal" style="width:440px">
+    <h3>版本管理</h3>
+    <div style="margin-bottom:12px">
+      <button class="save" onclick="snapshot()" style="background:var(--accent);color:#fff;border:1px solid var(--accent);padding:7px 14px;border-radius:6px;cursor:pointer;font-family:inherit">保存当前为版本</button>
+      <span style="font-size:12px;color:var(--sub);margin-left:8px">自动保存一直在后台进行，这里是手动快照。</span>
+    </div>
+    <div id="verList"></div>
+    <div class="btns"><button class="cancel" onclick="closeVer()">关闭</button></div>
+  </div>
+</div>
+
+<script>
+const DEMO = [
+  { id:"1", name:"张始祖", zi:"字某某", birth:"1825", death:"1890", spouse:"王氏" },
+  { id:"2", name:"张长房", birth:"1855", death:"1912", spouse:"李氏", parent:"1" },
+  { id:"3", name:"张次房", birth:"1860", spouse:"赵氏", parent:"1" },
+  { id:"4", name:"张大房长子", birth:"1885", spouse:"刘氏", parent:"2" },
+  { id:"5", name:"张大房次子", birth:"1888", spouse:"陈氏", parent:"2" },
+  { id:"6", name:"张次房子", birth:"1895", spouse:"孙氏", parent:"3" },
+  { id:"7", name:"张四代·甲", birth:"1925", death:"2001", spouse:"周氏", note:"居北京", parent:"4" },
+  { id:"8", name:"张四代·乙", birth:"1930", spouse:"吴氏", parent:"5" },
+  { id:"9", name:"张四代·丙", birth:"1935", parent:"6" },
+  { id:"10", name:"张五代·A", birth:"1955", spouse:"郑氏", note:"居北京", parent:"7" },
+  { id:"11", name:"张五代·B", birth:"1958", parent:"7" },
+  { id:"12", name:"张五代·C", birth:"1962", spouse:"冯氏", parent:"8" },
+  { id:"13", name:"张五代·D", birth:"1968", parent:"9" },
+];
+const DEFAULT_TITLE = "某氏家谱";
+const DEFAULT_SUB = "— 世代源流图 —";
+const LS_KEY = "jiapu_data_v1";
+
+let state = load();
+let showSpouse = true;
+let expanded = false;
+let editing = null;
+let pendingParent = null;
+
+document.getElementById("title").textContent = state.title;
+document.getElementById("subtitle").textContent = state.sub;
+
+/* ===== 历法转换 ===== */
+const GAN = "甲乙丙丁戊己庚辛壬癸";
+const ZHI = "子丑寅卯辰巳午未申酉戌亥";
+const ANI = ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"];
+function parseYear(s){
+  if(s==null) return null;
+  const m = String(s).match(/\d{1,4}/);
+  if(!m) return null;
+  const y = parseInt(m[0],10);
+  return (y>=1 && y<=3000) ? y : null;
+}
+function ganzhi(y){
+  const g = ((y-4)%10+10)%10, z = ((y-4)%12+12)%12;
+  return GAN[g]+ZHI[z]+"年（"+ANI[z]+"）";
+}
+const REIGNS = [
+  ["天命",1616,1626],["天聪",1626,1636],["崇德",1636,1643],["顺治",1644,1661],
+  ["康熙",1662,1722],["雍正",1723,1735],["乾隆",1736,1795],["嘉庆",1796,1820],
+  ["道光",1821,1850],["咸丰",1851,1861],["同治",1862,1874],["光绪",1875,1908],["宣统",1909,1911],
+  ["民国",1912,1948]
+];
+function reign(y){
+  if(y>=1949) return "公元 "+y+"年";
+  for(const [n,s,e] of REIGNS){ if(y>=s && y<=e) return n+" "+(y-s+1)+"年"; }
+  return "";
+}
+function yearDetail(s){
+  const y = parseYear(s);
+  if(y==null) return null;
+  return { gz: ganzhi(y), era: reign(y) };
+}
+
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if(s && Array.isArray(s.data)) return s;
+  }catch(e){}
+  return { title:DEFAULT_TITLE, sub:DEFAULT_SUB, data:JSON.parse(JSON.stringify(DEMO)) };
+}
+function save(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  const el = document.getElementById("saveState");
+  el.textContent = "已保存 · " + new Date().toLocaleTimeString();
+  el.classList.remove("warn");
+}
+
+function maxId(){
+  let m = 0;
+  state.data.forEach(p => { const n = parseInt(p.id,10); if(!isNaN(n) && n>m) m=n; });
+  return m;
+}
+function find(id){ return state.data.find(p => p.id === id); }
+function childrenOf(id){ return state.data.filter(p => p.parent === id); }
+function isLeaf(p){ return !childrenOf(p.id).length; }
+function genOf(p){ let d=1,c=p; while(c.parent && find(c.parent)){ d++; c=find(c.parent); } return d; }
+
+function personCard(p, isSpouse){
+  const rec = isSpouse
+    ? { name:p.spouse, birth:p.spouseBirth, death:p.spouseDeath, desc:p.spouseDesc }
+    : p;
+  let html = "";
+  if(!isSpouse) html += `<span class="gen-tag">${genOf(p)}世</span>`;
+  html += `<div class="nm">${esc(rec.name||"（佚名）")}</div>`;
+  if(!isSpouse && p.zi) html += `<div class="zi">字 ${esc(p.zi)}</div>`;
+  if(rec.birth || rec.death){
+    html += `<div class="life">公历 ${esc(rec.birth||"")}${rec.birth&&rec.death?" – ":""}${esc(rec.death||"")}</div>`;
+  }
+  if(!isSpouse && p.note) html += `<div class="life2">备注：${esc(p.note)}</div>`;
+  if(expanded){
+    const b = yearDetail(rec.birth), d = yearDetail(rec.death);
+    if(b) html += `<div class="life2">农历：${b.gz}<br>封建历：${b.era}</div>`;
+    if(d) html += `<div class="life2">卒·农历：${d.gz}<br>卒·封建历：${d.era}</div>`;
+    const desc = rec.desc||"";
+    const ds = isSpouse ? ' data-spouse="1"' : '';
+    if(document.body.classList.contains("edit"))
+      html += `<div class="desc" contenteditable="true" data-id="${p.id}"${ds}>${desc}</div>`;
+    else if(desc) html += `<div class="desc">${desc}</div>`;
+  }
+  return `<div class="person">${html}</div>`;
+}
+
+function tombCols(p){
+  const editMode = document.body.classList.contains("edit");
+  function col(lab, name, birth, death, descTxt, sp){
+    if(!name && !birth && !death) return "";
+    let h = `<div class="col"><div class="lab">${lab}</div>` +
+            `<div class="nm">${esc(name||"（佚名）")}</div>`;
+    if(birth||death)
+      h += `<div class="life">公历 ${esc(birth||"")}${birth&&death?" – ":""}${esc(death||"")}</div>`;
+    if(expanded){
+      const b=yearDetail(birth), d=yearDetail(death);
+      if(b) h += `<div class="life2">农历：${b.gz}<br>封建历：${b.era}</div>`;
+      if(d) h += `<div class="life2">卒·农历：${d.gz}<br>卒·封建历：${d.era}</div>`;
+      const ds = sp ? ' data-spouse="1"' : '';
+      const dv = descTxt||"";
+      if(editMode) h += `<div class="desc" contenteditable="true" data-id="${p.id}"${ds}>${dv}</div>`;
+      else if(dv) h += `<div class="desc">${dv}</div>`;
+    }
+    h += `</div>`;
+    return h;
+  }
+  const sN=p.spouse||"", sB=p.spouseBirth||"", sD=p.spouseDeath||"", sDesc=p.spouseDesc||"";
+  let html = "";
+  if(sN||sB||sD||sDesc) html += col("妣", sN, sB, sD, sDesc, true); // 妣居左
+  html += col("考", p.name, p.birth, p.death, p.desc, false);       // 考居右（传统右为尊）
+  return html;
+}
+
+function makeNode(p, gen){
+  const li = document.createElement("li");
+  const node = document.createElement("div");
+  node.className = "node";
+  const editMode = document.body.classList.contains("edit");
+  let html;
+  if(!editMode && p.death){
+    html = `<div class="tomb"><span class="gen-tag">${genOf(p)}世</span>` +
+           `<div class="cols">${tombCols(p)}</div></div>`;
+  }else{
+    let inner = personCard(p, false);
+    if(showSpouse && p.spouse) inner += personCard(p, true);
+    html = `<div class="family"><div class="pair">${inner}</div></div>`;
+  }
+  if(editMode){
+    html += `<div class="acts">
+      <button onclick="editPerson('${p.id}')">编辑</button>
+      <button onclick="addChild('${p.id}')">加子女</button>
+      <button class="del" onclick="delPerson('${p.id}')">删除</button>
+    </div>`;
+  }
+  node.innerHTML = html;
+  li.appendChild(node);
+
+  const kids = childrenOf(p.id);
+  if(kids.length){
+    const ul = document.createElement("ul");
+    kids.forEach(c => ul.appendChild(makeNode(c, gen+1)));
+    li.appendChild(ul);
+  }
+  return li;
+}
+
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function render(){
+  const tree = document.getElementById("tree");
+  tree.innerHTML = "";
+  const roots = state.data.filter(p => !p.parent);
+  const ul = document.createElement("ul");
+  roots.forEach(r => ul.appendChild(makeNode(r, 1)));
+  tree.appendChild(ul);
+  const gens = new Set();
+  state.data.forEach(p => gens.add(genOf(p)));
+  document.getElementById("stat").textContent =
+    `共 ${state.data.length} 人，分 ${gens.size} 世。在每个人下方「加子女」可开新枝；「删除」会连同其子孙一并移除。`;
+}
+
+/* 富文本描述：失焦保存 */
+document.addEventListener("blur", e => {
+  const t = e.target;
+  if(t && t.classList && t.classList.contains("desc")){
+    const p = find(t.getAttribute("data-id"));
+    if(p){
+      if(t.getAttribute("data-spouse")) p.spouseDesc = t.innerHTML;
+      else p.desc = t.innerHTML;
+      save();
+    }
+  }
+});
+
+/* ===== 标题可编辑 ===== */
+document.getElementById("title").addEventListener("blur", e => {
+  state.title = e.target.textContent.trim() || DEFAULT_TITLE;
+  e.target.textContent = state.title; save();
+});
+document.getElementById("subtitle").addEventListener("blur", e => {
+  state.sub = e.target.textContent.trim() || DEFAULT_SUB;
+  e.target.textContent = state.sub; save();
+});
+
+/* 展开 / 收起详情 */
+document.getElementById("expandBtn").addEventListener("click", () => {
+  expanded = !expanded;
+  document.getElementById("expandBtn").textContent = expanded ? "收起详情" : "展开详情";
+  render();
+});
+
+/* ===== 编辑操作 ===== */
+function openModal(p){
+  editing = p;
+  document.getElementById("modalTitle").textContent = p ? "编辑成员" : "新增成员";
+  document.getElementById("f_name").value  = p ? (p.name||"") : "";
+  document.getElementById("f_zi").value    = p ? (p.zi||"") : "";
+  document.getElementById("f_birth").value = p ? (p.birth||"") : "";
+  document.getElementById("f_death").value = p ? (p.death||"") : "";
+  document.getElementById("f_spouse").value= p ? (p.spouse||"") : "";
+  document.getElementById("f_sb").value     = p ? (p.spouseBirth||"") : "";
+  document.getElementById("f_sd").value     = p ? (p.spouseDeath||"") : "";
+  document.getElementById("f_note").value   = p ? (p.note||"") : "";
+  document.getElementById("overlay").classList.add("show");
+  document.getElementById("f_name").focus();
+}
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); editing=null; }
+
+function saveModal(){
+  const name = document.getElementById("f_name").value.trim();
+  if(!name){ alert("姓名不能为空"); return; }
+  const obj = {
+    name,
+    zi: document.getElementById("f_zi").value.trim(),
+    birth: document.getElementById("f_birth").value.trim(),
+    death: document.getElementById("f_death").value.trim(),
+    spouse: document.getElementById("f_spouse").value.trim(),
+    spouseBirth: document.getElementById("f_sb").value.trim(),
+    spouseDeath: document.getElementById("f_sd").value.trim(),
+    note: document.getElementById("f_note").value.trim(),
+  };
+  if(editing){
+    Object.assign(editing, obj);
+  }else{
+    const id = String(maxId()+1);
+    obj.id = id; obj.parent = pendingParent;
+    state.data.push(obj);
+  }
+  closeModal(); save(); render();
+}
+
+function addChild(parentId){ pendingParent = parentId; openModal(null); }
+function editPerson(id){ pendingParent=null; openModal(find(id)); }
+function delPerson(id){
+  const kids = childrenOf(id).length;
+  const nm = find(id).name;
+  let msg = `确定删除「${nm}」吗？`;
+  if(kids) msg += `其下 ${kids} 名子孙也会一并删除。`;
+  if(!confirm(msg)) return;
+  function kill(pid){
+    childrenOf(pid).forEach(c => kill(c.id));
+    state.data = state.data.filter(p => p.id !== pid);
+  }
+  kill(id);
+  save(); render();
+}
+
+document.getElementById("saveBtn").addEventListener("click", saveModal);
+document.getElementById("overlay").addEventListener("click", e => { if(e.target.id==="overlay") closeModal(); });
+
+/* 模式切换 */
+document.getElementById("modeBtn").addEventListener("click", () => {
+  const isEditing = document.body.classList.toggle("edit");
+  document.getElementById("modeBtn").textContent = isEditing ? "退出编辑" : "进入编辑";
+  render();
+});
+
+/* 添加始祖 */
+document.getElementById("addRoot").addEventListener("click", () => { pendingParent=null; openModal(null); });
+
+/* 上溯一代 */
+document.getElementById("genUp").addEventListener("click", () => {
+  const id = String(maxId()+1);
+  const ancestor = { id, name:"", parent:null };
+  state.data.forEach(p => { if(!p.parent) p.parent = id; });
+  state.data.push(ancestor);
+  save(); render(); editPerson(id);
+});
+
+/* 下延一代 */
+document.getElementById("genDown").addEventListener("click", () => {
+  const leaves = state.data.filter(isLeaf);
+  if(!leaves.length) return;
+  if(!confirm(`将为 ${leaves.length} 位末代成员各添加一名子女，确定？`)) return;
+  leaves.forEach(l => {
+    const id = String(maxId()+1);
+    state.data.push({ id, name:"", parent:l.id });
+  });
+  save(); render();
+});
+
+/* 恢复示例 */
+document.getElementById("resetDemo").addEventListener("click", () => {
+  if(!confirm("将清空当前数据并恢复示例，确定？")) return;
+  state = { title:DEFAULT_TITLE, sub:DEFAULT_SUB, data:JSON.parse(JSON.stringify(DEMO)) };
+  document.getElementById("title").textContent = state.title;
+  document.getElementById("subtitle").textContent = state.sub;
+  save(); render();
+});
+
+/* ===== 版本管理 ===== */
+const VER_KEY = "jiapu_versions_v1";
+function loadVers(){ try{ return JSON.parse(localStorage.getItem(VER_KEY)) || []; }catch(e){ return []; } }
+function saveVers(v){ localStorage.setItem(VER_KEY, JSON.stringify(v)); }
+function snapshot(){
+  const v = loadVers();
+  v.push({ ts:Date.now(), title:state.title, sub:state.sub, data:state.data });
+  saveVers(v); renderVerList();
+}
+function restoreVer(ts){
+  const v = loadVers().find(x => x.ts === ts);
+  if(!v) return;
+  if(!confirm("恢复到该版本？当前未另存的内容将被覆盖。")) return;
+  state = { title:v.title, sub:v.sub, data:v.data };
+  document.getElementById("title").textContent = state.title;
+  document.getElementById("subtitle").textContent = state.sub;
+  save(); render(); closeVer();
+}
+function delVer(ts){
+  if(!confirm("删除该版本？")) return;
+  saveVers(loadVers().filter(x => x.ts !== ts));
+  renderVerList();
+}
+function openVer(){ renderVerList(); document.getElementById("verModal").classList.add("show"); }
+function closeVer(){ document.getElementById("verModal").classList.remove("show"); }
+function renderVerList(){
+  const v = loadVers().sort((a,b) => b.ts - a.ts);
+  let h = "";
+  if(!v.length) h = '<div style="color:#7a6a52;padding:10px 0">暂无版本，点上方「保存当前为版本」创建。</div>';
+  v.forEach(x => {
+    const d = new Date(x.ts);
+    const t = d.toLocaleString();
+    h += `<div class="ver-row"><span>${esc(t)}</span>` +
+         `<span><button onclick="restoreVer(${x.ts})">恢复</button> ` +
+         `<button onclick="delVer(${x.ts})">删除</button></span></div>`;
+  });
+  document.getElementById("verList").innerHTML = h;
+}
+document.getElementById("versionBtn").addEventListener("click", openVer);
+document.getElementById("verModal").addEventListener("click", e => { if(e.target.id==="verModal") closeVer(); });
+
+/* 导出 JSON */
+document.getElementById("exportJson").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  download(blob, (state.title||"jiapu")+".json");
+});
+
+/* 导出 CSV */
+document.getElementById("exportCsv").addEventListener("click", () => {
+  const cols = ["id","name","zi","birth","death","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","parent"];
+  const escCsv = v => { v=v==null?"":String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  let rows = [cols.join(",")];
+  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.parent||""].map(escCsv).join(",")));
+  const blob = new Blob(["\uFEFF"+rows.join("\n")], {type:"text/csv;charset=utf-8"});
+  download(blob, (state.title||"jiapu")+".csv");
+});
+
+/* 导入 JSON */
+document.getElementById("importJson").addEventListener("change", e => {
+  const file = e.target.files[0]; if(!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const s = JSON.parse(r.result);
+      if(!s.data || !Array.isArray(s.data)) throw 0;
+      state = s; save(); render();
+      document.getElementById("title").textContent = state.title;
+      document.getElementById("subtitle").textContent = state.sub;
+      alert("导入成功");
+    }catch(err){ alert("文件格式不正确"); }
+  };
+  r.readAsText(file);
+  e.target.value = "";
+});
+
+function download(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+render();
+</script>
+</body>
+</html>
