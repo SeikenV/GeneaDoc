@@ -1,22 +1,23 @@
 // 传统竖排家谱 DOCX 导出。
 // 完全由本程序从 JSON 数据自行生成 OOXML（Word）文档，
 // 不依赖任何第三方库 / CDN，也不借助任何 HTML→DOCX 的转换软件。
-// 竖排文字通过 <w:textDirection w:val="tbRl"/> 实现。
 
 import { store } from "../data/state.js";
-import { sortedChildren, genOf, rankLabel } from "../data/queries.js";
-import { fmtDate, yearDetail } from "../utils/date.js";
+import { sortedChildren, genOf } from "../data/queries.js";
+import { fmtDate } from "../utils/date.js";
 import { download } from "../utils/dom.js";
-import { para, run, cell, row, table, buildDocx, spacer } from "./ooxml.js";
+import { para, run, cell, row, table, buildDocx } from "./ooxml.js";
 
-/** 竖排单元格内的一段文字 */
-function vText(text, opts = {}) {
+const MAX_COLS = 7; // 横向 A4 每行最多显示的夫妻列数
+
+/** 竖排文字段落 */
+function vPara(text, opts = {}) {
   if (!text) return "";
   const { size = 24, bold = false, color = "3A2E1F" } = opts;
   return para(run(text, { size, bold, color }), { vertical: true, align: "center" });
 }
 
-/** 一个人的竖排信息块：考（男）/ 妣（配偶） */
+/** 一个人的竖排信息 */
 function personBlock(p, isSpouse) {
   const name = isSpouse ? p.spouse : p.name;
   const zi = isSpouse ? p.spouseZi : p.zi;
@@ -29,52 +30,41 @@ function personBlock(p, isSpouse) {
     : fmtDate(p.birth) + (p.death ? " – " + fmtDate(p.death) : "");
 
   const parts = [];
-  parts.push(vText(isSpouse ? "妣" : "考", { size: 22, color: "8C5A2B", bold: true }));
-  parts.push(vText("讳" + (name || "佚名"), { size: 34, bold: true }));
-  if (zi) parts.push(vText("字 " + zi, { size: 20, color: "7A6A52" }));
-  if (bd) parts.push(vText(bd, { size: 18, color: "7A6A52" }));
-  if (note) parts.push(vText("生平：" + note, { size: 18, color: "7A6A52" }));
-  if (desc) parts.push(vText(desc, { size: 18, color: "7A6A52" }));
-  if (tomb) parts.push(vText("葬 " + tomb, { size: 18, color: "7A6A52" }));
+  parts.push(vPara(isSpouse ? "妣" : "考", { size: 22, color: "8C5A2B", bold: true }));
+  parts.push(vPara("讳" + (name || "佚名"), { size: 32, bold: true }));
+  if (zi) parts.push(vPara("字" + zi, { size: 20, color: "7A6A52" }));
+  if (bd) parts.push(vPara(bd, { size: 18, color: "7A6A52" }));
+  if (note) parts.push(vPara("生平：" + note, { size: 18, color: "7A6A52" }));
+  if (desc) parts.push(vPara(desc, { size: 18, color: "7A6A52" }));
+  if (tomb) parts.push(vPara("葬" + tomb, { size: 18, color: "7A6A52" }));
   return parts.join("");
 }
 
-/** 一对夫妻的竖排单元格：右为考、左为妣 */
-function coupleCell(p, genLabel) {
-  const hasSpouse = !!(p.spouse || p.spouseBirth || p.spouseDeath);
-  let inner = vText(genLabel, { size: 20, color: "8C5A2B", bold: true });
-  inner += personBlock(p, false); // 考（右侧列，竖排下从右向左排）
+/** 一对夫妻的单元格 */
+function coupleCell(p) {
+  const hasSpouse = !!(p.spouse || p.spouseBirth || p.spouseDeath || p.spouseNote || p.spouseZi);
+  let inner = personBlock(p, false); // 考（右侧列）
   if (hasSpouse) inner += personBlock(p, true); // 妣（左侧列）
-  return cell(inner, { vertical: true, widthPct: 100 / countLeaves(p), top: !p.parent, bottom: isLeaf(p) });
+  return cell(inner, { vertical: true, widthPct: 100 / MAX_COLS });
 }
 
-/** 一个节点下方的末代数量（用于列宽分配，使单元格宽度反映支系规模） */
-function countLeaves(node) {
-  const kids = sortedChildren(node.id);
-  if (!kids.length) return 1;
-  return kids.reduce((s, c) => s + countLeaves(c), 0);
+/** 把数组按 size 分块 */
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 }
 
-/** 构建某祖先的完整世系表（每世一行） */
-function buildPedigree(root) {
-  const generations = [];
-  function collect(p, depth) {
-    if (!generations[depth]) generations[depth] = [];
-    generations[depth].push(p);
-    sortedChildren(p.id).forEach((c) => collect(c, depth + 1));
+/** 构建从某位祖先开始的世代列表 */
+function buildGenerations(root) {
+  const gens = [];
+  function walk(p, depth) {
+    if (!gens[depth]) gens[depth] = [];
+    gens[depth].push(p);
+    sortedChildren(p.id).forEach((c) => walk(c, depth + 1));
   }
-  collect(root, 0);
-
-  const rows = generations.map((gen) => {
-    const genLabel = `第${genOf(gen[0])}世`;
-    const cells = gen.map((p) => coupleCell(p, genLabel));
-    return row(cells, { height: 5000 });
-  });
-  return table(rows, { fixed: true });
-}
-
-function isLeaf(p) {
-  return !sortedChildren(p.id).length;
+  walk(root, 0);
+  return gens.filter((g) => g && g.length);
 }
 
 export async function exportTraditionalDocx() {
@@ -83,21 +73,40 @@ export async function exportTraditionalDocx() {
   const roots = store.data.filter((p) => !p.parent);
 
   const body = [];
-  // 标题页
-  body.push(spacer(2400, 0));
+  // 封面
   body.push(para(run(title, { size: 72, bold: true, color: "8C5A2B" }), { align: "center" }));
   body.push(para(run(sub, { size: 28, color: "7A6A52" }), { align: "center", spacing: { before: 400 } }));
-  body.push(spacer(1200, 0));
+  body.push(para("", { spacing: { before: 1200 } }));
   body.push(para(run("麟趾百年称祖德", { size: 28, color: "7A6A52" }), { align: "center" }));
   body.push(para(run("螽斯千载念宗功", { size: 28, color: "7A6A52" }), { align: "center" }));
   body.push(para("", { pageBreak: true }));
 
-  // 各支世系图
+  // 各支系世系图
   roots.forEach((root) => {
-    body.push(buildPedigree(root));
-    body.push(para("", { pageBreak: true }));
+    const gens = buildGenerations(root);
+    gens.forEach((gen) => {
+      const genLabel = `第${genOf(gen[0])}世`;
+      body.push(para(run(genLabel, { size: 36, bold: true, color: "8C5A2B" }), { align: "center" }));
+      body.push(para("", { spacing: { before: 200 } }));
+
+      const batches = chunk(gen, MAX_COLS);
+      batches.forEach((batch, i) => {
+        const cells = batch.map(coupleCell);
+        // 首行加跨列表头“第 N 世（第 x 页）”
+        if (batches.length > 1) {
+          const header = cell(
+            para(run(`${genLabel}（第 ${i + 1} / ${batches.length} 行）`, { size: 20, color: "7A6A52" }), { align: "center" }),
+            { gridSpan: batch.length, widthPct: 100 }
+          );
+          body.push(table(row([header], { height: 500 }) + row(cells, { height: 5800 }), { fixed: true }));
+        } else {
+          body.push(table(row(cells, { height: 5800 }), { fixed: true }));
+        }
+      });
+      body.push(para("", { pageBreak: true }));
+    });
   });
 
-  const blob = await buildDocx(body, { top: 720, right: 720, bottom: 720, left: 720 });
+  const blob = await buildDocx(body, { top: 567, right: 567, bottom: 567, left: 567 }, { landscape: true });
   download(blob, (title || "jiapu") + "_传统.docx");
 }
