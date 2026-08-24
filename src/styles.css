@@ -1,0 +1,185 @@
+:root{
+  --line:#b08968;
+  --card-bg:#fffdf7;
+  --card-border:#c9a36b;
+  --name:#3a2e1f;
+  --sub:#7a6a52;
+  --accent:#8c5a2b;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:"Songti SC","SimSun","STSong","Noto Serif CJK SC",serif;
+  color:var(--name); background:#f3ede1;
+}
+
+header{ text-align:center; padding:20px 12px 6px; }
+header h1{ margin:0; font-size:28px; letter-spacing:6px; color:var(--accent); display:inline-block; }
+header .sub{ color:var(--sub); margin-top:6px; font-size:14px; letter-spacing:2px; display:inline-block; }
+body.edit [contenteditable]{ outline:1px dashed #c9a36b; border-radius:6px; padding:2px 8px; cursor:text; }
+body.edit [contenteditable]:focus{ outline:2px solid var(--accent); }
+
+.layout{ display:flex; align-items:flex-start; }
+.main{ flex:1; min-width:0; }
+.toolbar .sep{ width:1px; height:22px; background:#d9cbb2; margin:0 2px; }
+.toolbar{
+  position:sticky; top:0; z-index:20;
+  display:flex; gap:8px; justify-content:center; flex-wrap:wrap; align-items:center;
+  padding:10px; background:#f3ede1; border-bottom:1px solid #e0d4bd;
+}
+.toolbar button, .toolbar label.btn{
+  font-family:inherit; font-size:14px; cursor:pointer;
+  padding:6px 14px; border:1px solid var(--card-border);
+  background:var(--card-bg); color:var(--accent); border-radius:6px; user-select:none;
+}
+.toolbar button:hover, .toolbar label.btn:hover{ background:#efe4cf; }
+.toolbar .spacer{ flex:1; }
+#saveState{ font-size:13px; color:#5a8a3a; }
+#saveState.warn{ color:#b0413e; }
+
+.scroll{ overflow:auto; padding:20px 30px 80px; }
+
+/* ===== 树状图核心样式 ===== */
+.tree{ display:flex; justify-content:center; min-width:max-content; }
+.tree ul{ position:relative; padding-top:22px; display:flex; justify-content:center; margin:0; list-style:none; }
+.tree li{ position:relative; padding:22px 4px 0 4px; list-style:none; text-align:center; }
+.tree li::before, .tree li::after{
+  content:''; position:absolute; top:0; right:50%;
+  border-top:2px solid var(--line); width:50%; height:22px;
+}
+.tree li::after{ right:auto; left:50%; border-left:2px solid var(--line); }
+.tree li:only-child::before, .tree li:only-child::after{ display:none; }
+.tree li:only-child{ padding-top:0; }
+.tree li:first-child::before, .tree li:last-child::after{ border:0 none; }
+.tree li:last-child::before{ border-right:2px solid var(--line); border-radius:0 6px 0 0; }
+.tree li:first-child::after{ border-radius:6px 0 0 0; }
+.tree ul::before{ content:''; position:absolute; top:0; left:50%; border-left:2px solid var(--line); width:0; height:22px; }
+
+.node{ display:inline-block; position:relative; vertical-align:top; text-align:center; }
+.family{
+  display:inline-block; text-align:center;
+  border:1.5px solid var(--card-border); border-radius:12px;
+  background:#fffaf0; padding:4px; box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.pair{ display:flex; }
+.person{
+  min-width:120px; max-width:190px;
+  padding:10px 12px;
+  text-align:center; line-height:1.5;
+}
+.person + .person{ margin-left:-1.5px; border-left:1.5px dashed var(--card-border); }
+.nm{ font-size:18px; font-weight:bold; color:var(--name); }
+.zi{ font-size:12px; color:var(--sub); margin-top:2px; }
+.life{ font-size:12px; color:var(--sub); margin-top:3px; }
+.life2{ font-size:11px; color:var(--sub); margin-top:4px; text-align:left; }
+.desc{
+  margin-top:6px; padding:6px 8px; text-align:left;
+  font-size:12px; color:#5a4a36; line-height:1.6;
+  border-top:1px dashed #e0d4bd; max-height:120px; overflow:auto;
+}
+body.edit .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; }
+
+/* 仿墓碑：男方已故，展示模式 */
+.tomb{
+  display:inline-block; position:relative;
+  background:linear-gradient(#f7f2e6,#efe7d6);
+  border:2px solid #9c8a66; border-radius:16px 16px 8px 8px;
+  padding:12px 12px 14px; box-shadow:0 2px 6px rgba(0,0,0,.12);
+}
+.tomb .cap{
+  text-align:center; font-size:13px; color:#8a7a5c; letter-spacing:3px;
+  border-bottom:1px solid #d8c9a8; padding-bottom:6px; margin-bottom:8px;
+}
+.tomb .cols{ display:flex; }
+.tomb .col{ padding:4px 8px; text-align:center; min-width:40px; }
+.tomb .col + .col{ border-left:none; }
+.tomb .lab{ font-size:14px; color:#8a7a5c; font-weight:bold; margin-bottom:4px; }
+.tomb .nm{
+  writing-mode: vertical-rl; text-orientation: upright;
+  font-size:20px; font-weight:bold; color:var(--name);
+  margin:0 auto; letter-spacing:3px; min-height:28px;
+}
+.tomb .rank{ font-size:13px; color:#9a8a6c; margin-top:4px; }
+.tomb .life{ font-size:12px; color:#7a6a52; margin-top:3px; }
+.tomb .life2{ font-size:11px; color:#7a6a52; margin-top:4px; text-align:left; }
+.tomb .desc{
+  margin-top:6px; padding:6px 8px; text-align:left;
+  font-size:12px; color:#5a4a36; line-height:1.6;
+  border-top:1px dashed #d8c9a8; max-height:120px; overflow:auto;
+}
+body.edit .tomb .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; }
+.tomb{ display:inline-flex; align-items:stretch; }
+.tomb-addr-side{
+  writing-mode: vertical-rl; text-orientation: upright;
+  border-left:1px solid #d8c9a8; margin-left:12px; padding-left:10px;
+  display:flex; align-items:center; gap:6px;
+  font-size:13px; color:#7a6a52; max-height:200px;
+}
+.tomb-addr-side .addr-lab{ color:#8a7a5c; font-weight:bold; }
+.tomb-addr-side .addr-v{ min-width:14px; }
+body.edit .tomb-addr-side .addr-v{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; padding:2px 4px; outline:none; }
+.gen-tag{
+  position:absolute; left:2px; top:-10px;
+  background:var(--accent); color:#fff; font-size:11px;
+  padding:1px 6px; border-radius:10px; z-index:2;
+}
+.node .acts{ display:none; margin-top:8px; gap:6px; justify-content:center; }
+.node button{
+  font-family:inherit; font-size:12px; cursor:pointer;
+  padding:2px 8px; border:1px solid var(--card-border);
+  background:#fff; color:var(--accent); border-radius:5px;
+}
+.node button:hover{ background:#efe4cf; }
+.node button.del:hover{ background:#f6d9d6; border-color:#b0413e; color:#b0413e; }
+
+.edit-panel{
+  display:none; text-align:center; margin-top:30px; padding:14px;
+  border-top:1px dashed var(--card-border); color:var(--sub); font-size:14px;
+}
+body.edit .edit-panel{ display:block; }
+body.edit .node .acts{ display:flex; }
+.edit-panel .stat{ margin-bottom:10px; }
+.edit-panel button{
+  font-family:inherit; font-size:14px; cursor:pointer;
+  padding:6px 16px; border:1px solid var(--accent);
+  background:var(--accent); color:#fff; border-radius:6px; margin:0 6px;
+}
+.edit-panel button.ghost{ background:var(--card-bg); color:var(--accent); }
+
+.overlay{
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+  z-index:100; align-items:center; justify-content:center;
+}
+.overlay.show{ display:flex; }
+.modal{
+  background:#fffdf7; border:1.5px solid var(--card-border); border-radius:10px;
+  padding:20px 24px; width:340px; box-shadow:0 8px 30px rgba(0,0,0,.25);
+}
+.modal h3{ margin:0 0 14px; color:var(--accent); font-size:18px; }
+.modal label{ display:block; font-size:13px; color:var(--sub); margin:10px 0 3px; }
+.modal input, .modal textarea{
+  width:100%; padding:7px 9px; font-family:inherit; font-size:14px;
+  border:1px solid #d9c9a8; border-radius:6px; background:#fffdf7;
+}
+.modal textarea{ min-height:64px; resize:vertical; }
+.modal .row{ display:flex; gap:10px; }
+.modal .row > div{ flex:1; }
+.modal .ymd{ flex:2; }
+.modal .ymd-block{ width:100%; }
+.modal .ymd-f{ display:flex; gap:6px; }
+.modal .ymd-f input{ min-width:0; }
+.modal .ymd-f input[placeholder="年"]{ flex:3; min-width:90px; }
+.modal .ymd-f input[placeholder="月"],
+.modal .ymd-f input[placeholder="日"]{ flex:1.2; min-width:60px; }
+.modal .btns{ margin-top:18px; display:flex; gap:10px; justify-content:flex-end; }
+.modal .btns button{ font-family:inherit; font-size:14px; cursor:pointer; padding:7px 16px; border-radius:6px; }
+.modal .save{ background:var(--accent); color:#fff; border:1px solid var(--accent); }
+.modal .cancel{ background:#fff; color:var(--sub); border:1px solid #ccc; }
+
+@media print{
+  body{ background:#fff; }
+  .side, .toolbar, .edit-panel, .node .acts, .overlay{ display:none !important; }
+  header{ padding-top:0; }
+  .scroll{ overflow:visible; padding: 0; }
+  @page{ size: landscape; margin: 12mm; }
+}
