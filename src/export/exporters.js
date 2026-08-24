@@ -45,5 +45,10 @@ export function initExports() {
   document.getElementById("exportJson").addEventListener("click", exportJson);
   document.getElementById("exportCsv").addEventListener("click", exportCsv);
   document.getElementById("exportDocx").addEventListener("click", exportDocx);
-  document.getElementById("exportTraditionalDocx").addEventListener("click", exportTraditionalDocx);
+  document.getElementById("exportTraditionalDocx").addEventListener("click", () => {
+    exportTraditionalDocx().catch((err) => {
+      console.error(err);
+      alert("导出传统 DOCX 失败：" + err.message);
+    });
+  });
 }
