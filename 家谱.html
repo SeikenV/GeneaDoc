@@ -462,7 +462,7 @@ function makeNode(p, gen){
     if(ga !== gb) return ga - gb;
     const oa = a.order ? +a.order : 999;
     const ob = b.order ? +b.order : 999;
-    return oa - ob;                        // 同性别内排行升序（左小右大 = 老大在右）
+    return ob - oa;                        // 同性别内排行降序：长女在右
   });
   if(kids.length){
     const ul = document.createElement("ul");
