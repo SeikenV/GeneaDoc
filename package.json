@@ -1,0 +1,11 @@
+{
+  "name": "geneadoc",
+  "version": "1.0.0",
+  "description": "家谱树（可编辑）— 模块化前端应用",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve -l 8000 .",
+    "check": "for f in $(find src -name '*.js'); do node --check \"$f\" || exit 1; done"
+  }
+}
