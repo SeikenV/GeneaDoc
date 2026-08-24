@@ -235,16 +235,16 @@
     <div class="row">
       <div><label>家中排行</label><select id="f_order">
         <option value="">（空）</option>
-        <option value="1">第一</option>
-        <option value="2">第二</option>
-        <option value="3">第三</option>
-        <option value="4">第四</option>
-        <option value="5">第五</option>
-        <option value="6">第六</option>
-        <option value="7">第七</option>
-        <option value="8">第八</option>
-        <option value="9">第九</option>
-        <option value="10">第十</option>
+        <option value="1">长子</option>
+        <option value="2">次子</option>
+        <option value="3">三子</option>
+        <option value="4">四子</option>
+        <option value="5">五子</option>
+        <option value="6">六子</option>
+        <option value="7">七子</option>
+        <option value="8">八子</option>
+        <option value="9">九子</option>
+        <option value="10">十子</option>
       </select></div>
       <div><label>配偶生年（公历）</label><input id="f_sb" placeholder="如 1930"></div>
       <div><label>配偶卒年（公历）</label><input id="f_sd" placeholder="如 2005"></div>
@@ -512,7 +512,20 @@ document.getElementById("expandBtn").addEventListener("click", () => {
   render();
 });
 
-/* ===== 编辑操作 ===== */
+/* 排行下拉标签随「女」切换 子/女 */
+function syncOrderLabels(){
+  const female = document.getElementById("f_female").checked;
+  const suf = female ? "女" : "子";
+  const nums = ["","长","次","三","四","五","六","七","八","九","十"];
+  const sel = document.getElementById("f_order");
+  Array.from(sel.options).forEach(o => {
+    const v = o.value;
+    o.textContent = v==="" ? "（空）" : nums[+v] + suf;
+  });
+}
+document.getElementById("f_female").addEventListener("change", syncOrderLabels);
+
+/* =====  (edit ops) ===== */
 function openModal(p){
   editing = p;
   document.getElementById("modalTitle").textContent = p ? "编辑成员" : "新增成员";
@@ -528,6 +541,7 @@ function openModal(p){
   document.getElementById("f_tomb").value   = p ? (p.tomb||"") : "";
   document.getElementById("f_deceased").checked = !!(p && p.deceased);
   document.getElementById("f_female").checked   = !!(p && p.female);
+  syncOrderLabels();
   document.getElementById("overlay").classList.add("show");
   document.getElementById("f_name").focus();
 }
