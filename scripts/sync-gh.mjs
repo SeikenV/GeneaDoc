@@ -113,7 +113,7 @@ for (const p of localFiles) {
     maxBuffer: 100 * 1024 * 1024,
   });
   console.log(sha ? "UPDATE" : "NEW   ", p);
-  sha ? del++ : put++;
+  put++;
 }
 
 // 远端有、本地已删
