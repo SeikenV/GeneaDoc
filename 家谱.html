@@ -164,12 +164,20 @@
   }
   .modal h3{ margin:0 0 14px; color:var(--accent); font-size:18px; }
   .modal label{ display:block; font-size:13px; color:var(--sub); margin:10px 0 3px; }
-  .modal input{
+  .modal input, .modal textarea{
     width:100%; padding:7px 9px; font-family:inherit; font-size:14px;
     border:1px solid #d9c9a8; border-radius:6px; background:#fffdf7;
   }
+  .modal textarea{ min-height:64px; resize:vertical; }
   .modal .row{ display:flex; gap:10px; }
   .modal .row > div{ flex:1; }
+  .modal .ymd{ flex:2; }
+  .modal .ymd-block{ width:100%; }
+  .modal .ymd-f{ display:flex; gap:6px; }
+  .modal .ymd-f input{ min-width:0; }
+  .modal .ymd-f input[placeholder="年"]{ flex:3; min-width:90px; }
+  .modal .ymd-f input[placeholder="月"],
+  .modal .ymd-f input[placeholder="日"]{ flex:1.2; min-width:60px; }
   .modal .btns{ margin-top:18px; display:flex; gap:10px; justify-content:flex-end; }
   .modal .btns button{ font-family:inherit; font-size:14px; cursor:pointer; padding:7px 16px; border-radius:6px; }
   .modal .save{ background:var(--accent); color:#fff; border:1px solid var(--accent); }
@@ -227,11 +235,23 @@
     <input id="f_name" placeholder="必填">
     <div class="row">
       <div><label>字 / 号</label><input id="f_zi" placeholder="选填"></div>
-      <div><label>生年（公历）</label><input id="f_birth" placeholder="如 1925"></div>
-    </div>
-    <div class="row">
-      <div><label>卒年（公历）</label><input id="f_death" placeholder="如 2001"></div>
       <div><label>配偶姓名</label><input id="f_spouse" placeholder="选填（保留原姓名）"></div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>生（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_birth_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_birth_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_birth_d" type="number" min="1" max="31" placeholder="日">
+      </div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>卒（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_death_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_death_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_death_d" type="number" min="1" max="31" placeholder="日">
+      </div>
     </div>
     <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_deceased"> 已故（手动标记，与卒年无关）</label>
     <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_female"> 女（女为锚点，配偶为上门女婿）</label>
@@ -249,11 +269,28 @@
         <option value="9">九子</option>
         <option value="10">十子</option>
       </select></div>
-      <div><label>配偶生年（公历）</label><input id="f_sb" placeholder="如 1930"></div>
-      <div><label>配偶卒年（公历）</label><input id="f_sd" placeholder="如 2005"></div>
+      <div><label>配偶字 / 号</label><input id="f_szi" placeholder="选填"></div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>配偶生（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_sb_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_sb_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_sb_d" type="number" min="1" max="31" placeholder="日">
+      </div>
+    </div>
+    <div class="ymd ymd-block">
+      <label>配偶卒（公历，月日选填）</label>
+      <div class="ymd-f">
+        <input id="f_sd_y" type="number" min="1" max="3000" placeholder="年">
+        <input id="f_sd_m" type="number" min="1" max="12" placeholder="月">
+        <input id="f_sd_d" type="number" min="1" max="31" placeholder="日">
+      </div>
     </div>
     <label>备注（迁居 / 职业等）</label>
     <input id="f_note" placeholder="选填">
+    <label>配偶备注（迁居 / 职业等）</label>
+    <input id="f_snote" placeholder="选填">
     <label>墓碑所在城市</label>
     <input id="f_tomb" placeholder="选填（墓碑所在地，如：苏州）">
     <div class="btns">
@@ -312,6 +349,36 @@ function parseYear(s){
   const y = parseInt(m[0],10);
   return (y>=1 && y<=3000) ? y : null;
 }
+/* 生卒日期：支持 "年" / "年-月" / "年-月-日" 精度 */
+function parseDate(s){
+  if(s==null) return null;
+  const m = String(s).match(/(\d{1,4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?/);
+  if(!m) return null;
+  const y = parseInt(m[1],10);
+  if(!(y>=1 && y<=3000)) return null;
+  const mo = m[2]!=null ? parseInt(m[2],10) : null;
+  const d  = m[3]!=null ? parseInt(m[3],10) : null;
+  return { y, m:mo, d };
+}
+function fmtDate(s){
+  const p = parseDate(s);
+  if(!p) return "";
+  let t = String(p.y);
+  if(p.m!=null){
+    t += "年" + String(p.m) + "月";
+    if(p.d!=null) t += String(p.d) + "日";
+  }
+  return t;
+}
+function joinDate(y,m,d){
+  y = (y!=null && y!=="") ? String(y).trim() : "";
+  if(!y) return "";
+  let t = y;
+  if(m!=null && m!==""){ t += "-" + String(m).padStart(2,"0");
+    if(d!=null && d!=="") t += "-" + String(d).padStart(2,"0");
+  }
+  return t;
+}
 function ganzhi(y){
   const g = ((y-4)%10+10)%10, z = ((y-4)%12+12)%12;
   return GAN[g]+ZHI[z]+"年（"+ANI[z]+"）";
@@ -366,10 +433,13 @@ function personCard(p, isSpouse){
   html += `<div class="nm">${esc(rec.name||"（佚名）")}</div>`;
   if(!isSpouse && p.order) html += `<div class="rank">${esc(rankLabel(p.order, !!p.female))}</div>`;
   if(!isSpouse && p.zi) html += `<div class="zi">字 ${esc(p.zi)}</div>`;
+  if(isSpouse && p.spouseZi) html += `<div class="zi">字 ${esc(p.spouseZi)}</div>`;
   if(expanded && (rec.birth || rec.death)){
-    html += `<div class="life">公历 ${esc(rec.birth||"")}${rec.birth&&rec.death?" – ":""}${esc(rec.death||"")}</div>`;
+    const bs = fmtDate(rec.birth), ds = fmtDate(rec.death);
+    html += `<div class="life">公历 ${esc(bs)}${bs&&ds?" – ":""}${esc(ds)}</div>`;
   }
-  if(!isSpouse && p.note) html += `<div class="life2">备注：${esc(p.note)}</div>`;
+  if(expanded && !isSpouse && p.note) html += `<div class="life2">生平：${esc(p.note)}</div>`;
+  if(expanded && isSpouse && p.spouseNote) html += `<div class="life2">生平：${esc(p.spouseNote)}</div>`;
   if(expanded){
     const b = yearDetail(rec.birth), d = yearDetail(rec.death);
     if(b) html += `<div class="life2">生·农历：${b.gz}${b.era?("<br>生·封建历："+b.era):""}</div>`;
@@ -385,13 +455,16 @@ function personCard(p, isSpouse){
 
 function tombCols(p, kaoBi){
   const editMode = document.body.classList.contains("edit");
-  function col(lab, name, birth, death, descTxt, sp, rank){
-    if(!name && !birth && !death) return "";
+  function col(lab, name, birth, death, descTxt, sp, rank, zi, note){
+    if(!name && !birth && !death && !note) return "";
     let h = `<div class="col"><div class="lab">${lab}</div>` +
             `<div class="nm">${esc(name||"（佚名）")}</div>`;
     if(rank) h += `<div class="rank">${esc(rank)}</div>`;
+    if(!sp && zi) h += `<div class="zi">字 ${esc(zi)}</div>`;
+    if(sp && zi) h += `<div class="zi">字 ${esc(zi)}</div>`;
     if(expanded && (birth||death))
-      h += `<div class="life">公历 ${esc(birth||"")}${birth&&death?" – ":""}${esc(death||"")}</div>`;
+      h += `<div class="life">公历 ${esc(fmtDate(birth))}${birth&&death?" – ":""}${esc(fmtDate(death))}</div>`;
+    if(expanded && note) h += `<div class="life2">生平：${esc(note)}</div>`;
     if(expanded){
       const b=yearDetail(birth), d=yearDetail(death);
       if(b) h += `<div class="life2">生·农历：${b.gz}${b.era?("<br>生·封建历："+b.era):""}</div>`;
@@ -405,21 +478,21 @@ function tombCols(p, kaoBi){
     return h;
   }
   const female = !!p.female;
-  const sN=p.spouse||"", sB=p.spouseBirth||"", sD=p.spouseDeath||"", sDesc=p.spouseDesc||"";
+  const sN=p.spouse||"", sB=p.spouseBirth||"", sD=p.spouseDeath||"", sDesc=p.spouseDesc||"", sZi=p.spouseZi||"", sNote=p.spouseNote||"";
   const rank = p.order ? rankLabel(p.order, female) : "";
   let html = "";
   if(female){
     // 女方为锚点，配偶为上门女婿：本人(妣)居左，配偶(考)居右
     const labP = kaoBi ? "妣" : "";
     const labS = kaoBi ? "考" : "";
-    html += col(labP, p.name, p.birth, p.death, p.desc, false, rank);
-    if(sN||sB||sD||sDesc) html += col(labS, sN, sB, sD, sDesc, true);
+    html += col(labP, p.name, p.birth, p.death, p.desc, false, rank, p.zi, p.note);
+    if(sN||sB||sD||sDesc||sNote) html += col(labS, sN, sB, sD, sDesc, true, "", sZi, sNote);
   }else{
     // 男方为锚点：配偶(妣)居左，本人(考)居右
     const labP = kaoBi ? "考" : "";
     const labS = kaoBi ? "妣" : "";
-    if(sN||sB||sD||sDesc) html += col(labS, sN, sB, sD, sDesc, true);
-    html += col(labP, p.name, p.birth, p.death, p.desc, false, rank);
+    if(sN||sB||sD||sDesc||sNote) html += col(labS, sN, sB, sD, sDesc, true, "", sZi, sNote);
+    html += col(labP, p.name, p.birth, p.death, p.desc, false, rank, p.zi, p.note);
   }
   return html;
 }
@@ -542,12 +615,24 @@ function openModal(p){
   document.getElementById("modalTitle").textContent = p ? "编辑成员" : "新增成员";
   document.getElementById("f_name").value  = p ? (p.name||"") : "";
   document.getElementById("f_zi").value    = p ? (p.zi||"") : "";
-  document.getElementById("f_birth").value = p ? (p.birth||"") : "";
-  document.getElementById("f_death").value = p ? (p.death||"") : "";
+  const _b = p ? parseDate(p.birth) : null, _d = p ? parseDate(p.death) : null;
+  const _sb = p ? parseDate(p.spouseBirth) : null, _sd = p ? parseDate(p.spouseDeath) : null;
+  document.getElementById("f_birth_y").value = _b?_b.y:"";
+  document.getElementById("f_birth_m").value = _b&&_b.m!=null?_b.m:"";
+  document.getElementById("f_birth_d").value = _b&&_b.d!=null?_b.d:"";
+  document.getElementById("f_death_y").value = _d?_d.y:"";
+  document.getElementById("f_death_m").value = _d&&_d.m!=null?_d.m:"";
+  document.getElementById("f_death_d").value = _d&&_d.d!=null?_d.d:"";
   document.getElementById("f_spouse").value= p ? (p.spouse||"") : "";
-  document.getElementById("f_sb").value     = p ? (p.spouseBirth||"") : "";
-  document.getElementById("f_sd").value     = p ? (p.spouseDeath||"") : "";
+  document.getElementById("f_sb_y").value = _sb?_sb.y:"";
+  document.getElementById("f_sb_m").value = _sb&&_sb.m!=null?_sb.m:"";
+  document.getElementById("f_sb_d").value = _sb&&_sb.d!=null?_sb.d:"";
+  document.getElementById("f_sd_y").value = _sd?_sd.y:"";
+  document.getElementById("f_sd_m").value = _sd&&_sd.m!=null?_sd.m:"";
+  document.getElementById("f_sd_d").value = _sd&&_sd.d!=null?_sd.d:"";
+  document.getElementById("f_szi").value     = p ? (p.spouseZi||"") : "";
   document.getElementById("f_note").value   = p ? (p.note||"") : "";
+  document.getElementById("f_snote").value   = p ? (p.spouseNote||"") : "";
   document.getElementById("f_order").value   = p ? (p.order||"") : "";
   document.getElementById("f_tomb").value   = p ? (p.tomb||"") : "";
   document.getElementById("f_deceased").checked = !!(p && p.deceased);
@@ -564,12 +649,14 @@ function saveModal(){
   const obj = {
     name,
     zi: document.getElementById("f_zi").value.trim(),
-    birth: document.getElementById("f_birth").value.trim(),
-    death: document.getElementById("f_death").value.trim(),
+    birth: joinDate(document.getElementById("f_birth_y").value, document.getElementById("f_birth_m").value, document.getElementById("f_birth_d").value),
+    death: joinDate(document.getElementById("f_death_y").value, document.getElementById("f_death_m").value, document.getElementById("f_death_d").value),
     spouse: document.getElementById("f_spouse").value.trim(),
-    spouseBirth: document.getElementById("f_sb").value.trim(),
-    spouseDeath: document.getElementById("f_sd").value.trim(),
+    spouseBirth: joinDate(document.getElementById("f_sb_y").value, document.getElementById("f_sb_m").value, document.getElementById("f_sb_d").value),
+    spouseDeath: joinDate(document.getElementById("f_sd_y").value, document.getElementById("f_sd_m").value, document.getElementById("f_sd_d").value),
+    spouseZi: document.getElementById("f_szi").value.trim(),
     note: document.getElementById("f_note").value.trim(),
+    spouseNote: document.getElementById("f_snote").value.trim(),
     tomb: document.getElementById("f_tomb").value.trim(),
     deceased: document.getElementById("f_deceased").checked,
     female: document.getElementById("f_female").checked,
@@ -654,10 +741,10 @@ document.getElementById("exportJson").addEventListener("click", () => {
 
 /* 导出 CSV */
 document.getElementById("exportCsv").addEventListener("click", () => {
-  const cols = ["id","name","zi","birth","death","deceased","female","order","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","tomb","tombAddr","parent"];
+  const cols = ["id","name","zi","birth","death","deceased","female","order","spouse","spouseZi","spouseBirth","spouseDeath","spouseNote","note","desc","spouseDesc","tomb","tombAddr","parent"];
   const escCsv = v => { v=v==null?"":String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
   let rows = [cols.join(",")];
-  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.deceased?"1":"",p.female?"1":"",p.order||"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.tomb||"",p.tombAddr||"",p.parent||""].map(escCsv).join(",")));
+  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.deceased?"1":"",p.female?"1":"",p.order||"",p.spouse||"",p.spouseZi||"",p.spouseBirth||"",p.spouseDeath||"",p.spouseNote||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.tomb||"",p.tombAddr||"",p.parent||""].map(escCsv).join(",")));
   const blob = new Blob(["\uFEFF"+rows.join("\n")], {type:"text/csv;charset=utf-8"});
   download(blob, (state.title||"jiapu")+".csv");
 });
@@ -683,11 +770,13 @@ function buildDocxHtml(){
     if(!isSpouse && p.order) h += `<div class="sub">${esc(rankLabel(p.order,!!p.female))}</div>`;
     h += `<div class="nm">${esc(r.name||'（佚名）')}</div>`;
     if(!isSpouse && p.zi) h += `<div class="sub">字 ${esc(p.zi)}</div>`;
-    if(r.birth||r.death) h += `<div class="sub">公历 ${esc(r.birth||'')}${r.birth&&r.death?' – ':''}${esc(r.death||'')}</div>`;
+    if(isSpouse && p.spouseZi) h += `<div class="sub">字 ${esc(p.spouseZi)}</div>`;
+    if(r.birth||r.death) h += `<div class="sub">公历 ${esc(fmtDate(r.birth))}${r.birth&&r.death?' – ':''}${esc(fmtDate(r.death))}</div>`;
     const b = yearDetail(r.birth), d = yearDetail(r.death);
     if(b) h += `<div class="sub">农历 ${b.gz}${b.era?' / '+b.era:''}</div>`;
     if(d) h += `<div class="sub">农历 ${d.gz}${d.era?' / '+d.era:''}</div>`;
     if(!isSpouse && p.note) h += `<div class="sub">${esc(p.note)}</div>`;
+    if(isSpouse && p.spouseNote) h += `<div class="sub">${esc(p.spouseNote)}</div>`;
     if(!isSpouse && p.tomb) h += `<div class="sub">墓：${esc(p.tomb)}</div>`;
     if(!isSpouse && p.tombAddr) h += `<div class="sub">葬于 ${esc(stripTags(p.tombAddr))}</div>`;
     const desc = stripTags(r.desc);
