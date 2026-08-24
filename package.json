@@ -6,6 +6,11 @@
   "private": true,
   "scripts": {
     "start": "npx --yes serve -l 8000 .",
-    "check": "for f in $(find src -name '*.js'); do node --check \"$f\" || exit 1; done"
+    "check": "for f in $(find src -name '*.js'); do node --check \"$f\" || exit 1; done",
+    "sync": "node scripts/sync-gh.mjs",
+    "test:docx": "node scripts/test-docx-lib.mjs"
+  },
+  "dependencies": {
+    "docx": "^9.5.1"
   }
 }
