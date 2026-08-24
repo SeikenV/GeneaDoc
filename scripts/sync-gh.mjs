@@ -91,7 +91,7 @@ const remoteFiles = remoteList();
 // ---------------------------------------------------------------------------
 function remoteSha(p) {
   try {
-    return execSync(`gh api repos/${REPO}/contents/${enc(p)} --jq .sha`).toString().trim() || null;
+    return execSync(`gh api repos/${REPO}/contents/${enc(p)} --jq .sha 2>nul`).toString().trim() || null;
   } catch {
     return null;
   }
