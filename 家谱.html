@@ -195,6 +195,7 @@
       <span class="sep"></span>
       <button id="genUp">上溯一代</button>
       <button id="genDown">下延一代</button>
+      <label class="rg">起始世 <input id="rootGen" type="number" min="1" step="1" style="width:48px;font-family:inherit;padding:3px 6px;border:1px solid var(--card-border);border-radius:6px;"></label>
       <span class="sep"></span>
       <button onclick="window.print()">打印 / 存为 PDF</button>
       <label class="btn">导入 JSON<input type="file" id="importJson" accept=".json"  hidden></label>
@@ -271,6 +272,15 @@ let pendingParent = null;
 
 document.getElementById("title").textContent = state.title;
 document.getElementById("subtitle").textContent = state.sub;
+document.getElementById("rootGen").value = state.rootGen || 1;
+
+document.getElementById("rootGen").addEventListener("change", e => {
+  let v = parseInt(e.target.value, 10);
+  if(isNaN(v) || v < 1) v = 1;
+  state.rootGen = v;
+  e.target.value = v;
+  save(); render();
+});
 
 /* ===== 历法转换 ===== */
 const GAN = "甲乙丙丁戊己庚辛壬癸";
@@ -307,9 +317,9 @@ function yearDetail(s){
 function load(){
   try{
     const s = JSON.parse(localStorage.getItem(LS_KEY));
-    if(s && Array.isArray(s.data)) return s;
+    if(s && Array.isArray(s.data)){ if(!s.rootGen) s.rootGen = 1; return s; }
   }catch(e){}
-  return { title:DEFAULT_TITLE, sub:DEFAULT_SUB, data:JSON.parse(JSON.stringify(DEMO)) };
+  return { title:DEFAULT_TITLE, sub:DEFAULT_SUB, data:JSON.parse(JSON.stringify(DEMO)), rootGen:1 };
 }
 function save(){
   localStorage.setItem(LS_KEY, JSON.stringify(state));
@@ -326,7 +336,7 @@ function maxId(){
 function find(id){ return state.data.find(p => p.id === id); }
 function childrenOf(id){ return state.data.filter(p => p.parent === id); }
 function isLeaf(p){ return !childrenOf(p.id).length; }
-function genOf(p){ let d=1,c=p; while(c.parent && find(c.parent)){ d++; c=find(c.parent); } return d; }
+function genOf(p){ let d=1,c=p; while(c.parent && find(c.parent)){ d++; c=find(c.parent); } return d - 1 + (state.rootGen||1); }
 
 function personCard(p, isSpouse){
   const rec = isSpouse
@@ -389,12 +399,13 @@ function makeNode(p, gen){
   if(!editMode && p.death){
     html = `<div class="tomb"><span class="gen-tag">${genOf(p)}世</span>` +
            `<div class="cols">${tombCols(p)}</div>`;
-    if(p.tomb) html += `<div class="tomb-loc">墓址所在：${esc(p.tomb)}</div>`;
+    if(p.tomb && !expanded) html += `<div class="tomb-loc">葬于 ${esc(p.tomb)}</div>`;
     if(expanded){
-      html += `<div class="tomb-addr">` +
+      const loc = p.tombAddr || p.tomb || "";
+      html += `<div class="tomb-addr"><div class="addr-lab">葬于</div>` +
         (editMode
-          ? `<div class="addr-lab">墓址详情</div><div class="desc" contenteditable="true" data-id="${p.id}" data-field="tombAddr">${p.tombAddr||""}</div>`
-          : (p.tombAddr ? `<div class="addr-lab">墓址详情</div><div class="desc">${p.tombAddr}</div>` : "")) +
+          ? `<div class="desc" contenteditable="  true" data-id="${p.id}" data-field="tombAddr">${loc}</div>`
+          : `<div class="desc">${loc}</div>`) +
         `</div>`;
     }
     html += `</div>`;
