@@ -229,6 +229,7 @@
       <div><label>卒年（公历）</label><input id="f_death" placeholder="如 2001"></div>
       <div><label>配偶姓名</label><input id="f_spouse" placeholder="选填（保留原姓名）"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;"><input type="checkbox" id="f_deceased"> 已故（手动标记，与卒年无关）</label>
     <div class="row">
       <div><label>配偶生年（公历）</label><input id="f_sb" placeholder="如 1930"></div>
       <div><label>配偶卒年（公历）</label><input id="f_sd" placeholder="如 2005"></div>
@@ -399,7 +400,7 @@ function makeNode(p, gen){
   const editMode = document.body.classList.contains("edit");
   let html;
   if(!editMode){
-    const kaoBi = !!p.death; // 已故显示考妣，在世不显示
+    const kaoBi = !!(p.deceased || p.death); // 已故显示考妣，在世不显示
     html = `<div class="tomb"><span class="gen-tag">${genOf(p)}世</span>` +
            `<div class="cols">${tombCols(p, kaoBi)}</div>`;
     if(p.tomb && !expanded) html += `<div class="tomb-loc">葬于 ${esc(p.tomb)}</div>`;
@@ -496,6 +497,7 @@ function openModal(p){
   document.getElementById("f_sd").value     = p ? (p.spouseDeath||"") : "";
   document.getElementById("f_note").value   = p ? (p.note||"") : "";
   document.getElementById("f_tomb").value   = p ? (p.tomb||"") : "";
+  document.getElementById("f_deceased").checked = !!(p && p.deceased);
   document.getElementById("overlay").classList.add("show");
   document.getElementById("f_name").focus();
 }
@@ -514,6 +516,7 @@ function saveModal(){
     spouseDeath: document.getElementById("f_sd").value.trim(),
     note: document.getElementById("f_note").value.trim(),
     tomb: document.getElementById("f_tomb").value.trim(),
+    deceased: document.getElementById("f_deceased").checked,
   };
   if(editing){
     Object.assign(editing, obj);
@@ -593,10 +596,10 @@ document.getElementById("exportJson").addEventListener("click", () => {
 
 /* 导出 CSV */
 document.getElementById("exportCsv").addEventListener("click", () => {
-  const cols = ["id","name","zi","birth","death","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","tomb","tombAddr","parent"];
+  const cols = ["id","name","zi","birth","death","deceased","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","tomb","tombAddr","parent"];
   const escCsv = v => { v=v==null?"":String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
   let rows = [cols.join(",")];
-  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.parent||""].map(escCsv).join(",")));
+  state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.deceased?"1":"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.tomb||"",p.tombAddr||"",p.parent||""].map(escCsv).join(",")));
   const blob = new Blob(["\uFEFF"+rows.join("\n")], {type:"text/csv;charset=utf-8"});
   download(blob, (state.title||"jiapu")+".csv");
 });
