@@ -115,14 +115,16 @@
     border-top:1px dashed #d8c9a8; max-height:120px; overflow:auto;
   }
   body.edit .tomb .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; }
-  .tomb-loc{ text-align:center; font-size:12px; color:#8a7a5c; margin-top:8px; letter-spacing:1px; }
-  .tomb-addr{ margin-top:6px; }
-  .tomb-addr .addr-lab{ font-size:12px; color:#8a7a5c; text-align:center; margin-top:6px; }
-  .tomb-addr .desc{
-    margin-top:3px; font-size:12px; color:#5a4a36; text-align:left; line-height:1.6;
-    border-top:1px dashed #d8c9a8; padding-top:6px; max-height:120px; overflow:auto;
+  .tomb{ display:inline-flex; align-items:stretch; }
+  .tomb-addr-side{
+    writing-mode: vertical-rl; text-orientation: upright;
+    border-left:1px solid #d8c9a8; margin-left:12px; padding-left:10px;
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; color:#7a6a52; max-height:200px;
   }
-  body.edit .tomb-addr .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:32px; }
+  .tomb-addr-side .addr-lab{ color:#8a7a5c; font-weight:bold; }
+  .tomb-addr-side .addr-v{ min-width:14px; }
+  body.edit .tomb-addr-side .addr-v{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; padding:2px 4px; outline:none; }
   .gen-tag{
     position:absolute; left:2px; top:-10px;
     background:var(--accent); color:#fff; font-size:11px;
@@ -429,18 +431,16 @@ function makeNode(p, gen){
   let html;
   if(!editMode){
     const kaoBi = !!(p.deceased || p.death); // 已故显示考妣，在世不显示
+    const loc = p.tombAddr || p.tomb || "";
     html = `<div class="tomb"><span class="gen-tag">${genOf(p)}世</span>` +
-           `<div class="cols">${tombCols(p, kaoBi)}</div>`;
-    if(p.tomb && !expanded) html += `<div class="tomb-loc">葬于 ${esc(p.tomb)}</div>`;
-    if(expanded){
-      const loc = p.tombAddr || p.tomb || "";
-      html += `<div class="tomb-addr"><div class="addr-lab">葬于</div>` +
-        (editMode
-          ? `<div class="desc" contenteditable="true" data-id="${p.id}" data-field="tombAddr">${loc}</div>`
-          : `<div class="desc">${loc}</div>`) +
-        `</div>`;
-    }
-    html += `</div>`;
+           `<div class="cols">${tombCols(p, kaoBi)}</div>` +
+           (loc ? `<div class="tomb-addr-side"><span class="addr-lab">葬于</span>` +
+             (editMode
+               ? `<div class="addr-v" contenteditable="true" data-id="${p.id}" data-field="tombAddr">${loc}</div>`
+               : `<div class="addr-v">${esc(loc)}</div>`) +
+             `</div>`
+             : "") +
+           `</div>`;
   }else{
     let inner = personCard(p, false);
     if(showSpouse && p.spouse) inner += personCard(p, true);
