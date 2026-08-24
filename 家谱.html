@@ -361,7 +361,7 @@ function personCard(p, isSpouse){
   let html = "";
   if(!isSpouse) html += `<span class="gen-tag">${genOf(p)}世</span>`;
   html += `<div class="nm">${esc(rec.name||"（佚名）")}</div>`;
-  if(!isSpouse && p.order) html += `<div class="rank">第${esc(p.order)}</div>`;
+  if(!isSpouse && p.order) html += `<div class="rank">${esc(rankLabel(p.order, !!p.female))}</div>`;
   if(!isSpouse && p.zi) html += `<div class="zi">字 ${esc(p.zi)}</div>`;
   if(expanded && (rec.birth || rec.death)){
     html += `<div class="life">公历 ${esc(rec.birth||"")}${rec.birth&&rec.death?" – ":""}${esc(rec.death||"")}</div>`;
@@ -403,7 +403,7 @@ function tombCols(p, kaoBi){
   }
   const female = !!p.female;
   const sN=p.spouse||"", sB=p.spouseBirth||"", sD=p.spouseDeath||"", sDesc=p.spouseDesc||"";
-  const rank = p.order ? "第"+p.order : "";
+  const rank = p.order ? rankLabel(p.order, female) : "";
   let html = "";
   if(female){
     // 女方为锚点，配偶为上门女婿：本人(妣)居左，配偶(考)居右
@@ -513,14 +513,17 @@ document.getElementById("expandBtn").addEventListener("click", () => {
 });
 
 /* 排行下拉标签随「女」切换 子/女 */
+const RANK_NUMS = ["","长","次","三","四","五","六","七","八","九","十"];
+function rankLabel(order, female){
+  const n = +order; if(!n || n<1 || n>10) return "";
+  return RANK_NUMS[n] + (female ? "女" : "子");
+}
 function syncOrderLabels(){
   const female = document.getElementById("f_female").checked;
-  const suf = female ? "女" : "子";
-  const nums = ["","长","次","三","四","五","六","七","八","九","十"];
   const sel = document.getElementById("f_order");
   Array.from(sel.options).forEach(o => {
     const v = o.value;
-    o.textContent = v==="" ? "（空）" : nums[+v] + suf;
+    o.textContent = v==="" ? "（空）" : rankLabel(v, female);
   });
 }
 document.getElementById("f_female").addEventListener("change", syncOrderLabels);
