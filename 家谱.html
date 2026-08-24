@@ -74,7 +74,7 @@
     padding:10px 12px;
     text-align:center; line-height:1.5;
   }
-  .person + .person{ margin-left:-1.5px; border-left:1.5px solid var(--card-border); }
+  .person + .person{ margin-left:-1.5px; border-left:1.5px dashed var(--card-border); }
   .nm{ font-size:18px; font-weight:bold; color:var(--name); }
   .zi{ font-size:12px; color:var(--sub); margin-top:2px; }
   .life{ font-size:12px; color:var(--sub); margin-top:3px; }
@@ -98,8 +98,8 @@
     border-bottom:1px solid #d8c9a8; padding-bottom:6px; margin-bottom:8px;
   }
   .tomb .cols{ display:flex; }
-  .tomb .col{ padding:4px 14px; text-align:center; min-width:54px; }
-  .tomb .col + .col{ border-left:1px solid #d8c9a8; }
+  .tomb .col{ padding:4px 8px; text-align:center; min-width:40px; }
+  .tomb .col + .col{ border-left:none; }
   .tomb .lab{ font-size:14px; color:#8a7a5c; font-weight:bold; margin-bottom:4px; }
   .tomb .nm{
     writing-mode: vertical-rl; text-orientation: upright;
@@ -114,6 +114,14 @@
     border-top:1px dashed #d8c9a8; max-height:120px; overflow:auto;
   }
   body.edit .tomb .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:36px; }
+  .tomb-loc{ text-align:center; font-size:12px; color:#8a7a5c; margin-top:8px; letter-spacing:1px; }
+  .tomb-addr{ margin-top:6px; }
+  .tomb-addr .addr-lab{ font-size:12px; color:#8a7a5c; text-align:center; margin-top:6px; }
+  .tomb-addr .desc{
+    margin-top:3px; font-size:12px; color:#5a4a36; text-align:left; line-height:1.6;
+    border-top:1px dashed #d8c9a8; padding-top:6px; max-height:120px; overflow:auto;
+  }
+  body.edit .tomb-addr .desc{ background:#fff; border:1px dashed #c9a36b; border-radius:6px; min-height:32px; }
   .gen-tag{
     position:absolute; left:2px; top:-10px;
     background:var(--accent); color:#fff; font-size:11px;
@@ -226,6 +234,8 @@
     </div>
     <label>备注（迁居 / 职业等）</label>
     <input id="f_note" placeholder="选填">
+    <label>墓碑所在城市</label>
+    <input id="f_tomb" placeholder="选填（墓碑所在地，如：苏州）">
     <div class="btns">
       <button class="cancel" onclick="closeModal()">取消</button>
       <button class="save" id="saveBtn">保存</button>
@@ -241,7 +251,7 @@ const DEMO = [
   { id:"4", name:"张大房长子", birth:"1885", spouse:"刘氏", parent:"2" },
   { id:"5", name:"张大房次子", birth:"1888", spouse:"陈氏", parent:"2" },
   { id:"6", name:"张次房子", birth:"1895", spouse:"孙氏", parent:"3" },
-  { id:"7", name:"张四代·甲", birth:"1925", death:"2001", spouse:"周氏", note:"居北京", parent:"4" },
+  { id:"7", name:"张四代·甲", birth:"1925", death:"2001", spouse:"周氏", note:"居北京", tomb:"苏州", parent:"4" },
   { id:"8", name:"张四代·乙", birth:"1930", spouse:"吴氏", parent:"5" },
   { id:"9", name:"张四代·丙", birth:"1935", parent:"6" },
   { id:"10", name:"张五代·A", birth:"1955", spouse:"郑氏", note:"居北京", parent:"7" },
@@ -283,15 +293,15 @@ const REIGNS = [
   ["道光",1821,1850],["咸丰",1851,1861],["同治",1862,1874],["光绪",1875,1908],["宣统",1909,1911],
   ["民国",1912,1948]
 ];
-function reign(y){
-  if(y>=1949) return "公元 "+y+"年";
-  for(const [n,s,e] of REIGNS){ if(y>=s && y<=e) return n+" "+(y-s+1)+"年"; }
-  return "";
-}
 function yearDetail(s){
   const y = parseYear(s);
   if(y==null) return null;
-  return { gz: ganzhi(y), era: reign(y) };
+  const gz = ganzhi(y);
+  let era = "";
+  if(y<=1911){
+    for(const [n,s,e] of REIGNS){ if(y>=s && y<=e){ era = n+" "+(y-s+1)+"年"; break; } }
+  }
+  return { gz, era };
 }
 
 function load(){
@@ -326,14 +336,14 @@ function personCard(p, isSpouse){
   if(!isSpouse) html += `<span class="gen-tag">${genOf(p)}世</span>`;
   html += `<div class="nm">${esc(rec.name||"（佚名）")}</div>`;
   if(!isSpouse && p.zi) html += `<div class="zi">字 ${esc(p.zi)}</div>`;
-  if(rec.birth || rec.death){
+  if(expanded && (rec.birth || rec.death)){
     html += `<div class="life">公历 ${esc(rec.birth||"")}${rec.birth&&rec.death?" – ":""}${esc(rec.death||"")}</div>`;
   }
   if(!isSpouse && p.note) html += `<div class="life2">备注：${esc(p.note)}</div>`;
   if(expanded){
     const b = yearDetail(rec.birth), d = yearDetail(rec.death);
-    if(b) html += `<div class="life2">农历：${b.gz}<br>封建历：${b.era}</div>`;
-    if(d) html += `<div class="life2">卒·农历：${d.gz}<br>卒·封建历：${d.era}</div>`;
+    if(b) html += `<div class="life2">生·农历：${b.gz}${b.era?("<br>生·封建历："+b.era):""}</div>`;
+    if(d) html += `<div class="life2">卒·农历：${d.gz}${d.era?("<br>卒·封建历："+d.era):""}</div>`;
     const desc = rec.desc||"";
     const ds = isSpouse ? ' data-spouse="1"' : '';
     if(document.body.classList.contains("edit"))
@@ -349,12 +359,12 @@ function tombCols(p){
     if(!name && !birth && !death) return "";
     let h = `<div class="col"><div class="lab">${lab}</div>` +
             `<div class="nm">${esc(name||"（佚名）")}</div>`;
-    if(birth||death)
+    if(expanded && (birth||death))
       h += `<div class="life">公历 ${esc(birth||"")}${birth&&death?" – ":""}${esc(death||"")}</div>`;
     if(expanded){
       const b=yearDetail(birth), d=yearDetail(death);
-      if(b) h += `<div class="life2">农历：${b.gz}<br>封建历：${b.era}</div>`;
-      if(d) h += `<div class="life2">卒·农历：${d.gz}<br>卒·封建历：${d.era}</div>`;
+      if(b) h += `<div class="life2">生·农历：${b.gz}${b.era?("<br>生·封建历："+b.era):""}</div>`;
+      if(d) h += `<div class="life2">卒·农历：${d.gz}${d.era?("<br>卒·封建历："+d.era):""}</div>`;
       const ds = sp ? ' data-spouse="1"' : '';
       const dv = descTxt||"";
       if(editMode) h += `<div class="desc" contenteditable="true" data-id="${p.id}"${ds}>${dv}</div>`;
@@ -378,7 +388,16 @@ function makeNode(p, gen){
   let html;
   if(!editMode && p.death){
     html = `<div class="tomb"><span class="gen-tag">${genOf(p)}世</span>` +
-           `<div class="cols">${tombCols(p)}</div></div>`;
+           `<div class="cols">${tombCols(p)}</div>`;
+    if(p.tomb) html += `<div class="tomb-loc">墓址所在：${esc(p.tomb)}</div>`;
+    if(expanded){
+      html += `<div class="tomb-addr">` +
+        (editMode
+          ? `<div class="addr-lab">墓址详情</div><div class="desc" contenteditable="true" data-id="${p.id}" data-field="tombAddr">${p.tombAddr||""}</div>`
+          : (p.tombAddr ? `<div class="addr-lab">墓址详情</div><div class="desc">${p.tombAddr}</div>` : "")) +
+        `</div>`;
+    }
+    html += `</div>`;
   }else{
     let inner = personCard(p, false);
     if(showSpouse && p.spouse) inner += personCard(p, true);
@@ -424,7 +443,9 @@ document.addEventListener("blur", e => {
   if(t && t.classList && t.classList.contains("desc")){
     const p = find(t.getAttribute("data-id"));
     if(p){
-      if(t.getAttribute("data-spouse")) p.spouseDesc = t.innerHTML;
+      const f = t.getAttribute("data-field");
+      if(f === "tombAddr") p.tombAddr = t.innerHTML;
+      else if(t.getAttribute("data-spouse")) p.spouseDesc = t.innerHTML;
       else p.desc = t.innerHTML;
       save();
     }
@@ -460,6 +481,7 @@ function openModal(p){
   document.getElementById("f_sb").value     = p ? (p.spouseBirth||"") : "";
   document.getElementById("f_sd").value     = p ? (p.spouseDeath||"") : "";
   document.getElementById("f_note").value   = p ? (p.note||"") : "";
+  document.getElementById("f_tomb").value   = p ? (p.tomb||"") : "";
   document.getElementById("overlay").classList.add("show");
   document.getElementById("f_name").focus();
 }
@@ -477,6 +499,7 @@ function saveModal(){
     spouseBirth: document.getElementById("f_sb").value.trim(),
     spouseDeath: document.getElementById("f_sd").value.trim(),
     note: document.getElementById("f_note").value.trim(),
+    tomb: document.getElementById("f_tomb").value.trim(),
   };
   if(editing){
     Object.assign(editing, obj);
@@ -556,7 +579,7 @@ document.getElementById("exportJson").addEventListener("click", () => {
 
 /* 导出 CSV */
 document.getElementById("exportCsv").addEventListener("click", () => {
-  const cols = ["id","name","zi","birth","death","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","parent"];
+  const cols = ["id","name","zi","birth","death","spouse","spouseBirth","spouseDeath","note","desc","spouseDesc","tomb","tombAddr","parent"];
   const escCsv = v => { v=v==null?"":String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
   let rows = [cols.join(",")];
   state.data.forEach(p => rows.push([p.id,p.name,p.zi||"",p.birth||"",p.death||"",p.spouse||"",p.spouseBirth||"",p.spouseDeath||"",p.note||"",(p.desc||"").replace(/<[^>]+>/g,""),(p.spouseDesc||"").replace(/<[^>]+>/g,""),p.parent||""].map(escCsv).join(",")));
